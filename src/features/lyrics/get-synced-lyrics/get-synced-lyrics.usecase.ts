@@ -248,6 +248,7 @@ export class GetSyncedLyricsUseCase {
 
     const $ = load(html);
     const hidden = readHiddenMeta($);
+    const videoUrl = hidden?.video_id ? `https://www.youtube.com/watch?v=${hidden.video_id}` : undefined;
     const lines: SyncedLyricLineDto[] = [];
 
     $('#leg_sinc ul#lsin_ls li.lineItem').each((_, element) => {
@@ -274,6 +275,7 @@ export class GetSyncedLyricsUseCase {
 
     return {
       lines: result,
+      video_url: videoUrl,
       hidden
     };
   }

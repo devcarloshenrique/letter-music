@@ -13,7 +13,10 @@ export class GetSyncedLyricsController {
       res.status(200).json({
         success: true,
         message: 'Legenda sincronizada extraída com sucesso.',
-        data: output.lines,
+        data: {
+          video_url: output.video_url,
+          lines: output.lines
+        },
         metadata: {
           timestamp: new Date().toISOString(),
           path: req.path,

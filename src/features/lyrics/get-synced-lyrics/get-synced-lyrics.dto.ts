@@ -16,5 +16,6 @@ export type GetSyncedLyricsInputDto = {
 
 export type GetSyncedLyricsOutputDto = {
   lines: SyncedLyricLineDto[];
+  video_url?: string;
   hidden: SyncedLyricsHiddenMetaDto | null;
 };
