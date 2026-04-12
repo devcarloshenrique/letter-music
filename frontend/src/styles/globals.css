@@ -1,0 +1,65 @@
+@import 'tailwindcss';
+
+@layer base {
+  :root {
+    color: theme(--color-tertiary);
+    background: theme(--color-background);
+    font-family: theme(--font-sans);
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  * {
+    @apply box-border;
+  }
+
+  body {
+    @apply m-0 bg-background text-tertiary;
+  }
+
+  ::selection {
+    @apply bg-primary/30 text-on-primary-fixed;
+  }
+
+  #root {
+    @apply min-h-screen;
+  }
+}
+
+@layer utilities {
+  .glass-surface {
+    background: rgba(45, 43, 49, 0.6);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .dot-grid {
+    background-image: radial-gradient(circle, #27252a 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  .focus-ring {
+    @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
+  }
+
+  .premium-transition {
+    @apply transition-all duration-200 ease-out;
+  }
+
+  .interactive-scale {
+    @apply active:scale-95;
+  }
+
+  .text-display {
+    @apply text-5xl font-black tracking-tight md:text-7xl;
+  }
+
+  .text-headline {
+    @apply text-3xl font-extrabold tracking-tight md:text-4xl;
+  }
+
+  .text-label {
+    @apply text-[11px] font-bold uppercase tracking-widest;
+  }
+}

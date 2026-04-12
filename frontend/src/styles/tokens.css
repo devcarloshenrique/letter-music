@@ -1,0 +1,37 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;800;900&display=swap');
+
+@theme {
+  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: #0f0e11;
+  --color-surface: #1b191d;
+  --color-surface-high: #27252a;
+  --color-surface-container-high: #211f23;
+  --color-surface-variant: #27252a;
+  --color-on-surface: #f7f2f7;
+  --color-on-surface-variant: #aeaaae;
+
+  --color-primary: #db90ff;
+  --color-primary-dim: #b12ef1;
+  --color-on-primary-fixed: #000000;
+
+  --color-secondary: #00e3fd;
+  --color-secondary-dim: #00d4ec;
+
+  --color-tertiary: #f9f9f9;
+
+  --color-outline: #787479;
+  --color-outline-variant: #49474b;
+
+  --color-error: #ff6e84;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+
+  --shadow-ambient: 0 10px 40px rgba(0, 0, 0, 0.35);
+  --shadow-glow-primary: 0 0 20px rgba(219, 144, 255, 0.35);
+  --shadow-glow-secondary: 0 0 20px rgba(0, 227, 253, 0.35);
+}

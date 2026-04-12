@@ -533,3 +533,71 @@ Lucide / Material Symbols
 Se um componente destoar visualmente:
 - Está errado.
 - Deve ser refatorado.
+
+---
+
+# 21. Status de Bootstrap (Implementado)
+
+O projeto está preparado para iniciar a página inicial e novas páginas com padrão consistente.
+
+## Base Técnica já configurada
+
+- React + TypeScript + Vite
+- TailwindCSS (via plugin Vite) com tokens semânticos
+- Framer Motion
+- TanStack Query
+- React Hook Form + Zod
+- Zustand
+- clsx + tailwind-merge + class-variance-authority
+- Lucide React
+
+## Estrutura já aplicada
+
+```text
+src/
+├── app/
+│   ├── app.tsx
+│   ├── providers/app-providers.tsx
+│   ├── layouts/root-layout.tsx
+│   └── routes/app-routes.tsx
+├── features/
+│   └── home/
+│       ├── components/
+│       ├── hooks/
+│       ├── services/
+│       ├── schemas/
+│       ├── types/
+│       ├── utils/
+│       ├── pages/home-page.tsx
+│       └── index.ts
+├── shared/
+│   ├── components/
+│   │   ├── ui/
+│   │   ├── layout/
+│   │   └── feedback/
+│   ├── constants/
+│   ├── hooks/
+│   ├── lib/
+│   └── utils/
+└── styles/
+	├── tokens.css
+	└── globals.css
+```
+
+## Padrão para criar nova página
+
+1. Criar a feature em `src/features/[feature-name]/...`.
+2. Criar página em `pages/[feature-page].tsx`.
+3. Usar apenas tokens semânticos (`bg-surface`, `text-secondary`, etc).
+4. Compor UI por primitives de `shared/components/ui`.
+5. Registrar rota lazy em `src/app/routes/app-routes.tsx`.
+6. Garantir acessibilidade (aria-label, foco visível, contraste).
+
+## Critério de pronto para UI nova
+
+Uma página nova só é considerada pronta se:
+
+- respeita tokens semânticos (sem hardcoded color),
+- usa layout base (`RootLayout`),
+- possui feedback de interação (hover/active/focus),
+- e mantém consistência visual premium com o restante do produto.
