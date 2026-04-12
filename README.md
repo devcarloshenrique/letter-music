@@ -22,6 +22,10 @@ O projeto foi refatorado para **Vertical Slice + Use Case**, seguindo os princí
 
 `GET /api/lyrics?url=<url-da-musica>`
 
+`POST /api/auth/login`
+
+> Esse endpoint usa `LETRAS_EMAIL` e `LETRAS_PASSWORD` do ambiente para autenticação programática e persistência de sessão (cookies).
+
 ## Documentação Swagger
 
 - UI Swagger: `GET /docs`

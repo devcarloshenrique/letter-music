@@ -1,3 +1,4 @@
+import { loginPathSpec } from '../../../features/auth/login/swagger';
 import { getLyricsPathSpec } from '../../../features/lyrics/get-lyrics/get-lyrics.swagger';
 
 export const openApiSpec = {
@@ -12,7 +13,7 @@ export const openApiSpec = {
       url: 'http://localhost:3000'
     }
   ],
-  tags: [{ name: 'Health' }, { name: 'Lyrics' }],
+  tags: [{ name: 'Health' }, { name: 'Auth' }, { name: 'Lyrics' }],
   paths: {
     '/health': {
       get: {
@@ -36,6 +37,7 @@ export const openApiSpec = {
         }
       }
     },
+    ...loginPathSpec,
     ...getLyricsPathSpec
   }
 } as const;
