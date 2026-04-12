@@ -54,17 +54,22 @@ describe('LoginUseCase', () => {
       status: 200,
       data: '<html>cookie-login</html>'
     });
+    vi.mocked(httpClient.get).mockResolvedValueOnce({
+      status: 200,
+      data: '<html>letras-home</html>'
+    });
     vi.mocked(httpClient.getCookies)
       .mockResolvedValueOnce(['sessionid=abc123'])
-      .mockResolvedValueOnce(['accountsid=def456']);
+      .mockResolvedValueOnce(['accountsid=def456'])
+      .mockResolvedValueOnce([]);
 
     const result = await useCase.execute();
 
     expect(result.authenticated).toBe(true);
-  expect(result.cookieCount).toBe(2);
+    expect(result.cookieCount).toBe(2);
     expect(httpClient.postJson).toHaveBeenCalledTimes(2);
-    expect(httpClient.get).toHaveBeenCalledOnce();
-    expect(httpClient.getCookies).toHaveBeenCalledTimes(2);
+    expect(httpClient.get).toHaveBeenCalledTimes(2);
+    expect(httpClient.getCookies).toHaveBeenCalledTimes(3);
   });
 
   it('lança erro para credenciais inválidas quando sessão não é estabelecida', async () => {

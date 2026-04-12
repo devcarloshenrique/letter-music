@@ -22,9 +22,22 @@ O projeto foi refatorado para **Vertical Slice + Use Case**, seguindo os princí
 
 `GET /api/lyrics?url=<url-da-musica>`
 
+`GET /api/lyrics/synced?url=<url-corrigir-legenda>`
+
+> Requer sessão autenticada (faça login antes via `/api/auth/login`).
+
 `POST /api/auth/login`
 
 > Esse endpoint usa `LETRAS_EMAIL` e `LETRAS_PASSWORD` do ambiente para autenticação programática e persistência de sessão (cookies).
+
+### Exemplo de resposta de letras sincronizadas
+
+```json
+[
+  { "time": "00:12.50", "text": "Primeira frase" },
+  { "time": "00:15.75", "text": "Segunda frase" }
+]
+```
 
 ## Documentação Swagger
 

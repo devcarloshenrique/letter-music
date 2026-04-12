@@ -1,21 +1,28 @@
-import type { Request, Response } from 'express';
+import type { NextFunction, Request, Response } from 'express';
 import { AppError } from '../../../shared/errors/app-error';
 import { LoginUseCase } from './usecase';
 
 export class LoginController {
   constructor(private readonly useCase: LoginUseCase) {}
 
-  handle = async (_req: Request, res: Response): Promise<Response> => {
+  handle = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const output = await this.useCase.execute();
-      return res.status(200).json(output);
-    } catch (error) {
-      if (error instanceof AppError) {
-        return res.status(error.statusCode).json({ error: error.message });
-      }
+      const email = typeof req.body?.email === 'string' ? req.body.email : undefined;
+      const password = typeof req.body?.password === 'string' ? req.body.password : undefined;
 
-      const message = error instanceof Error ? error.message : 'Erro inesperado no login';
-      return res.status(502).json({ error: message });
+      const output = await this.useCase.execute({ email, password });
+      
+      res.status(201).json({
+        success: true,
+        message: 'Sessão iniciada com sucesso.',
+        data: output,
+        metadata: {
+          timestamp: new Date().toISOString(),
+          path: req.path
+        }
+      });
+    } catch (error) {
+      next(error);
     }
   };
 }

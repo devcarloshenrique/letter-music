@@ -1,11 +1,15 @@
 import { AppError } from '../../../shared/errors/app-error';
+import {
+  ACCOUNTS_LETRAS_BASE_URL,
+  ACCOUNTS_CIFRACLUB_BASE_URL,
+  ACCOUNTS_GRAPHQL_URL,
+  LETRAS_BASE_URL,
+  LETRAS_BROWSER_HEADERS
+} from '../../../shared/infra/http/letras-request';
 import type { IHttpClient } from '../../../shared/providers/http/ihttp-client';
 import type { LoginInputDto, LoginOutputDto } from './dto';
 
-const ACCOUNTS_GRAPHQL_URL = 'https://accounts.letras.mus.br/v2/graphql';
 const ACCOUNTS_COOKIE_LOGIN_URL = 'https://accounts.cifraclub.com.br/v2/cookies/login';
-const LETRAS_BASE_URL = 'https://www.letras.mus.br/';
-const ACCOUNTS_BASE_URL = 'https://accounts.letras.mus.br/';
 
 type AuthMutationResponse = {
   data?: {
@@ -54,9 +58,7 @@ export class LoginUseCase {
         }
       },
       {
-        Referer: LETRAS_BASE_URL,
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
+        ...LETRAS_BROWSER_HEADERS
       }
     );
 
@@ -80,13 +82,19 @@ export class LoginUseCase {
     loginUrl.searchParams.set('href', LETRAS_BASE_URL);
 
     const cookieLoginResponse = await this.httpClient.get(loginUrl.toString(), {
-      Referer: LETRAS_BASE_URL,
-      'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
+      ...LETRAS_BROWSER_HEADERS
     });
 
     if (cookieLoginResponse.status >= 400) {
       throw new AppError('Falha ao realizar login no Letras.', 502);
+    }
+
+    const letrasWarmupResponse = await this.httpClient.get(LETRAS_BASE_URL, {
+      ...LETRAS_BROWSER_HEADERS
+    });
+
+    if (letrasWarmupResponse.status >= 400) {
+      throw new AppError('Falha ao inicializar sessão no domínio do Letras.', 502);
     }
 
     const sessionCheckResponse = await this.httpClient.postJson<AuthMutationResponse>(
@@ -101,9 +109,7 @@ export class LoginUseCase {
         `
       },
       {
-        Referer: LETRAS_BASE_URL,
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
+        ...LETRAS_BROWSER_HEADERS
       }
     );
 
@@ -114,7 +120,8 @@ export class LoginUseCase {
 
     const cookies = [
       ...(await this.httpClient.getCookies(LETRAS_BASE_URL)),
-      ...(await this.httpClient.getCookies(ACCOUNTS_BASE_URL))
+      ...(await this.httpClient.getCookies(ACCOUNTS_LETRAS_BASE_URL)),
+      ...(await this.httpClient.getCookies(ACCOUNTS_CIFRACLUB_BASE_URL))
     ];
 
     if (cookies.length === 0) {

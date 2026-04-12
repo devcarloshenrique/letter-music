@@ -4,9 +4,23 @@ export const loginPathSpec = {
       tags: ['Auth'],
       summary: 'Realiza login programático no Letras',
       description:
-        'Usa process.env.LETRAS_EMAIL e process.env.LETRAS_PASSWORD para autenticar em https://www.letras.mus.br/contribuicoes/entrar/ e persistir cookies de sessão.',
+        'Usa credenciais do body (quando enviadas) ou fallback em process.env (LETRAS_EMAIL/LETRAS_PASSWORD) para autenticar e persistir cookies de sessão.',
+      requestBody: {
+        required: false,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                email: { type: 'string', format: 'email' },
+                password: { type: 'string' }
+              }
+            }
+          }
+        }
+      },
       responses: {
-        '200': {
+        '201': {
           description: 'Login realizado com sessão persistida',
           content: {
             'application/json': {

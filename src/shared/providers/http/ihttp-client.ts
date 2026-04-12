@@ -1,6 +1,7 @@
 export type HttpResponse<TData = unknown> = {
   status: number;
   data: TData;
+  headers?: Record<string, string | string[] | undefined>;
 };
 
 export interface IHttpClient {

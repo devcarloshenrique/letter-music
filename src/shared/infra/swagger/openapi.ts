@@ -1,5 +1,6 @@
 import { loginPathSpec } from '../../../features/auth/login/swagger';
 import { getLyricsPathSpec } from '../../../features/lyrics/get-lyrics/get-lyrics.swagger';
+import { getSyncedLyricsPathSpec } from '../../../features/lyrics/get-synced-lyrics/get-synced-lyrics.swagger';
 
 export const openApiSpec = {
   openapi: '3.0.3',
@@ -38,6 +39,7 @@ export const openApiSpec = {
       }
     },
     ...loginPathSpec,
-    ...getLyricsPathSpec
+    ...getLyricsPathSpec,
+    ...getSyncedLyricsPathSpec
   }
 } as const;

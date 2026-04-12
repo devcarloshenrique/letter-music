@@ -38,7 +38,8 @@ export class AxiosHttpClient implements IHttpClient {
 
     return {
       status: response.status,
-      data: response.data
+      data: response.data,
+      headers: response.headers as Record<string, string | string[] | undefined>
     };
   }
 
@@ -56,7 +57,8 @@ export class AxiosHttpClient implements IHttpClient {
 
     return {
       status: response.status,
-      data: response.data
+      data: response.data,
+      headers: response.headers as Record<string, string | string[] | undefined>
     };
   }
 
@@ -65,7 +67,8 @@ export class AxiosHttpClient implements IHttpClient {
 
     return {
       status: response.status,
-      data: response.data
+      data: response.data,
+      headers: response.headers as Record<string, string | string[] | undefined>
     };
   }
 
