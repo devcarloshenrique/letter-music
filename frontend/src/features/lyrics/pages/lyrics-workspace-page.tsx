@@ -30,22 +30,22 @@ export default function LyricsWorkspacePage() {
     setLoopRange,
     setSpeed,
     seekToLine,
+    toggleLoopLine,
     toggleLoop,
     handlePlayerReady,
     handlePlayerStateChange
   } = useLyricsPlayer(lines);
 
   const handleLineClick = useCallback(
-    (line: any, event: React.MouseEvent) => {
-      seekToLine(line, event.shiftKey || event.ctrlKey || event.metaKey);
+    (line: any, _event: React.MouseEvent) => {
+      seekToLine(line);
     },
     [seekToLine]
   );
 
   const handleLoopToggle = useCallback((index: number) => {
-    // Use seekToLine with isShiftKey=true to allow multi-line selection via the loop icon
-    seekToLine(lines[index], true);
-  }, [lines, seekToLine]);
+    toggleLoopLine(lines[index]);
+  }, [lines, toggleLoopLine]);
 
   const registerLineRef = useCallback((index: number, element: HTMLButtonElement | null) => {
     lineRefs.current[index] = element;

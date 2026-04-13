@@ -63,24 +63,30 @@ export function useLyricsPlayer(lines: SyncedLine[]) {
   }, []);
 
   const seekToLine = useCallback(
-    (line: SyncedLine, isShiftKey = false) => {
-      const lineIndex = lines.indexOf(line);
-
-      if (isShiftKey && lineIndex !== -1) {
-        setLoopIndices((prev) => {
-          if (prev.includes(lineIndex)) {
-            return prev.filter((i) => i !== lineIndex).sort((a, b) => a - b);
-          }
-          return [...prev, lineIndex].sort((a, b) => a - b);
-        });
-      } else {
-        setLoopIndices(lineIndex !== -1 ? [lineIndex] : []);
-        seekTo(parseSyncedTimeToSeconds(line.start));
-        playerRef.current?.playVideo();
-        setIsPlaying(true);
-      }
+    (line: SyncedLine) => {
+      seekTo(parseSyncedTimeToSeconds(line.start));
+      playerRef.current?.playVideo();
+      setIsPlaying(true);
     },
-    [lines, seekTo]
+    [seekTo]
+  );
+
+  const toggleLoopLine = useCallback(
+    (line: SyncedLine) => {
+      const lineIndex = lines.indexOf(line);
+      if (lineIndex === -1) {
+        return;
+      }
+
+      setLoopIndices((prev) => {
+        if (prev.includes(lineIndex)) {
+          return prev.filter((i) => i !== lineIndex).sort((a, b) => a - b);
+        }
+
+        return [...prev, lineIndex].sort((a, b) => a - b);
+      });
+    },
+    [lines]
   );
 
   const setSpeed = useCallback((rate: number) => {
@@ -258,6 +264,7 @@ export function useLyricsPlayer(lines: SyncedLine[]) {
     setLoopRange,
     setSpeed,
     seekToLine,
+  toggleLoopLine,
     cycleSpeed,
     togglePlayPause,
     toggleLoop,
