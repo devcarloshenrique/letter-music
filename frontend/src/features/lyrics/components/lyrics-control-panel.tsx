@@ -34,7 +34,7 @@ export function LyricsControlPanel({
 }: LyricsControlPanelProps) {
   return (
     <aside className='flex w-full flex-col gap-6 bg-surface p-6 md:p-8'>
-      <div className='glass-surface rounded-2xl p-5'>
+      <div>
         <div className='aspect-video overflow-hidden rounded-2xl bg-surface-high'>
           {videoId ? (
             <YouTube
@@ -55,31 +55,6 @@ export function LyricsControlPanel({
             <div className='flex h-full items-center justify-center text-sm text-on-surface-variant'>Sem vídeo disponível</div>
           )}
         </div>
-
-        <div className='mt-4 flex items-start justify-between gap-3'>
-          <div>
-            <h3 className='text-sm font-black uppercase tracking-wider text-on-surface'>Active Listening</h3>
-            <p className='mt-1 line-clamp-2 text-xs text-on-surface-variant'>{queryUrl || 'URL da música'}</p>
-          </div>
-          <button
-            type='button'
-            aria-label='Play Pause'
-            onClick={onTogglePlayPause}
-            className='interactive-scale premium-transition inline-flex h-10 w-10 items-center justify-center rounded-full border border-outline-variant/30 bg-surface-high text-secondary hover:border-secondary/40'
-          >
-            {isPlaying ? <Pause size={18} /> : <Play size={18} />}
-          </button>
-        </div>
-
-        <a
-          href={queryUrl}
-          target='_blank'
-          rel='noreferrer'
-          className='premium-transition mt-4 inline-flex items-center gap-2 text-xs font-semibold text-primary hover:text-secondary'
-        >
-          <ExternalLink size={14} />
-          Abrir URL original
-        </a>
       </div>
 
       <div className='glass-surface rounded-2xl p-5'>
