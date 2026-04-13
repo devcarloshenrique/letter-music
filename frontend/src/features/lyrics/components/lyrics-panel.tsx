@@ -40,9 +40,6 @@ export function LyricsPanel({
             <p className='max-w-[55vw] truncate text-xs text-on-surface-variant md:text-sm'>{queryUrl || 'Sem URL informada'}</p>
           </div>
         </div>
-        <span className='rounded-full border border-secondary/40 bg-secondary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-secondary'>
-          Auto-Translate On
-        </span>
       </header>
 
       <div className='min-h-0 flex-1 overflow-y-auto px-6 py-8 md:px-12' onWheel={onManualScroll} onTouchMove={onManualScroll}>

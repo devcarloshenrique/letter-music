@@ -1,5 +1,6 @@
 import type { PropsWithChildren } from 'react';
 import { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { BottomNav } from '../../shared/components/layout/bottom-nav';
 import { Navbar } from '../../shared/components/layout/navbar';
 import { SettingsAuthModal } from '../../shared/components/layout/settings-auth-modal';
@@ -9,6 +10,10 @@ export function RootLayout({ children }: PropsWithChildren) {
   const [isClosingTransition, setIsClosingTransition] = useState(false);
   const closeTimeoutRef = useRef<number | null>(null);
   const shouldLockViewport = isSettingsOpen || isClosingTransition;
+  const location = useLocation();
+
+  // Hide Top bar and Bottom nav in the workspace
+  const isWorkspace = location.pathname.startsWith('/lyrics');
 
   useEffect(() => {
     return () => {
@@ -65,17 +70,17 @@ export function RootLayout({ children }: PropsWithChildren) {
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-background text-on-surface">
-      <Navbar onOpenSettings={handleOpenSettings} />
+      {!isWorkspace && <Navbar onOpenSettings={handleOpenSettings} />}
       <div
         className={`fixed inset-0 z-0 transition-all duration-700 ${
           shouldLockViewport ? 'scale-105 select-none blur-[40px]' : ''
         }`}
       >
-        <main className="dot-grid h-full w-full overflow-hidden">
+        <main className={`dot-grid h-full w-full overflow-hidden ${!isWorkspace ? 'pt-[76px]' : ''}`}>
           {children}
         </main>
       </div>
-      <BottomNav />
+      {!isWorkspace && <BottomNav />}
       <SettingsAuthModal isOpen={isSettingsOpen} onClose={handleCloseSettings} />
     </div>
   );
