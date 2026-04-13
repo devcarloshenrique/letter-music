@@ -44,7 +44,161 @@ function createLegSincHtml(linesCount = 22): string {
   `;
 }
 
+function createPublicPageWithUiLyricScript(): string {
+  return `
+    <html>
+      <body>
+        <script>
+          _omq.push(['ui/lyric', {
+            "DNS":"casa-worship",
+            "URL":"a-casa-e-sua",
+            "YoutubeID":"5QHF5OQeFOs"
+          }]);
+        </script>
+      </body>
+    </html>
+  `;
+}
+
+function createPublicPageWithUiPlayerScript(): string {
+  return `
+    <html>
+      <body>
+        <script>
+          _omq.push(['ui/player', {
+            "DNS":"casa-worship",
+            "URL":"a-casa-e-sua",
+            "YoutubeID":"5QHF5OQeFOs"
+          }]);
+        </script>
+      </body>
+    </html>
+  `;
+}
+
+function createPublicPageWithEditLink(): string {
+  return `
+    <html>
+      <body>
+        <a href="/contribuicoes/corrigir_legenda/casa-worship/a-casa-e-sua/5QHF5OQeFOs/">Editar legenda</a>
+      </body>
+    </html>
+  `;
+}
+
 describe('GetSyncedLyricsUseCase', () => {
+  it('aceita URL pública e resolve URL de contribuição via script ui/lyric', async () => {
+    const httpClient = createHttpClientMock();
+    const useCase = new GetSyncedLyricsUseCase(httpClient);
+
+    vi.mocked(httpClient.getCookies)
+      .mockResolvedValueOnce(['login=123'])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    vi.mocked(httpClient.postJson).mockResolvedValueOnce({
+      status: 200,
+      data: {
+        data: {
+          viewer: {
+            isSessionValid: true
+          }
+        }
+      }
+    });
+    vi.mocked(httpClient.get)
+      .mockResolvedValueOnce({
+        status: 200,
+        data: createPublicPageWithUiLyricScript()
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        data: createLegSincHtml(22)
+      });
+
+    const result = await useCase.execute({
+      url: 'https://www.letras.mus.br/casa-worship/a-casa-e-sua/'
+    });
+
+    expect(result.lines).toHaveLength(22);
+    expect(vi.mocked(httpClient.get).mock.calls[1]?.[0]).toBe(
+      'https://www.letras.mus.br/contribuicoes/corrigir_legenda/casa-worship/a-casa-e-sua/5QHF5OQeFOs/'
+    );
+  });
+
+  it('usa fallback ui/player quando ui/lyric não existe', async () => {
+    const httpClient = createHttpClientMock();
+    const useCase = new GetSyncedLyricsUseCase(httpClient);
+
+    vi.mocked(httpClient.getCookies)
+      .mockResolvedValueOnce(['login=123'])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    vi.mocked(httpClient.postJson).mockResolvedValueOnce({
+      status: 200,
+      data: {
+        data: {
+          viewer: {
+            isSessionValid: true
+          }
+        }
+      }
+    });
+    vi.mocked(httpClient.get)
+      .mockResolvedValueOnce({
+        status: 200,
+        data: createPublicPageWithUiPlayerScript()
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        data: createLegSincHtml(22)
+      });
+
+    await useCase.execute({
+      url: 'https://www.letras.mus.br/casa-worship/a-casa-e-sua/'
+    });
+
+    expect(vi.mocked(httpClient.get).mock.calls[1]?.[0]).toBe(
+      'https://www.letras.mus.br/contribuicoes/corrigir_legenda/casa-worship/a-casa-e-sua/5QHF5OQeFOs/'
+    );
+  });
+
+  it('usa fallback por link de editar legenda quando script _omq não possui dados', async () => {
+    const httpClient = createHttpClientMock();
+    const useCase = new GetSyncedLyricsUseCase(httpClient);
+
+    vi.mocked(httpClient.getCookies)
+      .mockResolvedValueOnce(['login=123'])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    vi.mocked(httpClient.postJson).mockResolvedValueOnce({
+      status: 200,
+      data: {
+        data: {
+          viewer: {
+            isSessionValid: true
+          }
+        }
+      }
+    });
+    vi.mocked(httpClient.get)
+      .mockResolvedValueOnce({
+        status: 200,
+        data: createPublicPageWithEditLink()
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        data: createLegSincHtml(22)
+      });
+
+    await useCase.execute({
+      url: 'https://www.letras.mus.br/casa-worship/a-casa-e-sua/'
+    });
+
+    expect(vi.mocked(httpClient.get).mock.calls[1]?.[0]).toBe(
+      'https://www.letras.mus.br/contribuicoes/corrigir_legenda/casa-worship/a-casa-e-sua/5QHF5OQeFOs/'
+    );
+  });
+
   it('extrai 22 linhas do #leg_sinc usando rel/value e captura hidden metadata', async () => {
     const httpClient = createHttpClientMock();
     const useCase = new GetSyncedLyricsUseCase(httpClient);
@@ -246,5 +400,48 @@ describe('GetSyncedLyricsUseCase', () => {
         url: 'https://www.letras.mus.br/contribuicoes/corrigir_legenda/felipe-rodrigues/tudo-e-perda/qxzQR5uwWsk/'
       })
     ).rejects.toMatchObject({ statusCode: 401 });
+  });
+
+  it('retorna 404 quando página pública da música não existe', async () => {
+    const httpClient = createHttpClientMock();
+    const useCase = new GetSyncedLyricsUseCase(httpClient);
+
+    vi.mocked(httpClient.get).mockResolvedValueOnce({
+      status: 404,
+      data: '<html></html>'
+    });
+
+    await expect(
+      useCase.execute({
+        url: 'https://www.letras.mus.br/casa-worship/a-casa-e-sua/'
+      })
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it('retorna 404 quando não encontra dados para montar URL de legenda sincronizada', async () => {
+    const httpClient = createHttpClientMock();
+    const useCase = new GetSyncedLyricsUseCase(httpClient);
+
+    vi.mocked(httpClient.get).mockResolvedValueOnce({
+      status: 200,
+      data: '<html><body><div>sem dados</div></body></html>'
+    });
+
+    await expect(
+      useCase.execute({
+        url: 'https://www.letras.mus.br/casa-worship/a-casa-e-sua/'
+      })
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it('retorna 400 para URL inválida', async () => {
+    const httpClient = createHttpClientMock();
+    const useCase = new GetSyncedLyricsUseCase(httpClient);
+
+    await expect(
+      useCase.execute({
+        url: 'url-invalida'
+      })
+    ).rejects.toMatchObject({ statusCode: 400 });
   });
 });

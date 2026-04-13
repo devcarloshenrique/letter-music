@@ -23,6 +23,12 @@ type SessionCheckResponse = {
   };
 };
 
+type SyncedLyricsSongMeta = {
+  dns: string;
+  url: string;
+  youtubeId: string;
+};
+
 function dedupe(lines: SyncedLyricLineDto[]): SyncedLyricLineDto[] {
   const seen = new Set<string>();
   return lines.filter((line) => {
@@ -111,6 +117,162 @@ function findArraySlice(source: string, arrayStartIndex: number): string | null 
   return source.slice(arrayStartIndex, endIndex + 1);
 }
 
+function findObjectSlice(source: string, objectStartIndex: number): string | null {
+  let depth = 0;
+  let endIndex = -1;
+  let inString: '"' | "'" | null = null;
+  let escaped = false;
+
+  for (let index = objectStartIndex; index < source.length; index += 1) {
+    const char = source[index];
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      escaped = true;
+      continue;
+    }
+
+    if (inString) {
+      if (char === inString) {
+        inString = null;
+      }
+      continue;
+    }
+
+    if (char === '"' || char === "'") {
+      inString = char;
+      continue;
+    }
+
+    if (char === '{') {
+      depth += 1;
+    } else if (char === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        endIndex = index;
+        break;
+      }
+    }
+  }
+
+  if (endIndex < 0) {
+    return null;
+  }
+
+  return source.slice(objectStartIndex, endIndex + 1);
+}
+
+function isLetrasHost(hostname: string): boolean {
+  return hostname === 'letras.mus.br' || hostname.endsWith('.letras.mus.br');
+}
+
+function normalizeCandidateHref(hrefRaw: string): string {
+  return hrefRaw
+    .trim()
+    .replace(/\\\//g, '/')
+    .replace(/&amp;/g, '&');
+}
+
+function normalizeMetaValue(raw: unknown): string {
+  return normalizeLyricText(String(raw ?? ''));
+}
+
+function buildMetaCandidateFromPayload(payload: Record<string, unknown>): SyncedLyricsSongMeta {
+  return {
+    dns: normalizeMetaValue(payload.DNS),
+    url: normalizeMetaValue(payload.URL),
+    youtubeId: normalizeMetaValue(payload.YoutubeID ?? payload.youtubeID)
+  };
+}
+
+function hasCompleteSongMeta(meta: SyncedLyricsSongMeta | null): meta is SyncedLyricsSongMeta {
+  return Boolean(meta?.dns && meta.url && meta.youtubeId);
+}
+
+function extractMetaFromOmqTag(scriptRaw: string, tag: 'ui/lyric' | 'ui/player'): SyncedLyricsSongMeta | null {
+  const tagRegex = new RegExp(`['\"]${tag}['\"]`, 'g');
+
+  let tagMatch = tagRegex.exec(scriptRaw);
+  while (tagMatch) {
+    const objectStartIndex = scriptRaw.indexOf('{', tagMatch.index);
+    if (objectStartIndex >= 0) {
+      const payloadRaw = findObjectSlice(scriptRaw, objectStartIndex);
+      if (payloadRaw) {
+        try {
+          const payload = JSON.parse(payloadRaw) as Record<string, unknown>;
+          const candidate = buildMetaCandidateFromPayload(payload);
+          if (hasCompleteSongMeta(candidate)) {
+            return candidate;
+          }
+        } catch {
+          // Ignora payload inválido e continua buscando fallback.
+        }
+      }
+    }
+
+    tagMatch = tagRegex.exec(scriptRaw);
+  }
+
+  return null;
+}
+
+function extractSongMetaFromPublicPage(html: string): SyncedLyricsSongMeta | null {
+  const $ = load(html);
+
+  const scriptContents = $('script')
+    .toArray()
+    .map((element) => $(element).html() ?? '')
+    .filter((scriptRaw) => scriptRaw.includes('_omq.push'));
+
+  for (const scriptRaw of scriptContents) {
+    const lyricMeta = extractMetaFromOmqTag(scriptRaw, 'ui/lyric');
+    if (hasCompleteSongMeta(lyricMeta)) {
+      return lyricMeta;
+    }
+  }
+
+  for (const scriptRaw of scriptContents) {
+    const playerMeta = extractMetaFromOmqTag(scriptRaw, 'ui/player');
+    if (hasCompleteSongMeta(playerMeta)) {
+      return playerMeta;
+    }
+  }
+
+  return null;
+}
+
+function extractContributionUrlFromPublicPage(pageUrl: URL, html: string): string | null {
+  const $ = load(html);
+
+  const anchors = $('a[href*="/contribuicoes/corrigir_legenda/"]');
+  for (const anchor of anchors) {
+    const hrefRaw = $(anchor).attr('href');
+    if (!hrefRaw) continue;
+
+    try {
+      const resolved = new URL(normalizeCandidateHref(hrefRaw), pageUrl.toString());
+      if (isLetrasHost(resolved.hostname) && resolved.pathname.includes('/contribuicoes/corrigir_legenda/')) {
+        return resolved.toString();
+      }
+    } catch {
+      // tenta próximo candidato
+    }
+  }
+
+  return null;
+}
+
+function buildContributionUrlFromMeta(meta: SyncedLyricsSongMeta): string {
+  return new URL(
+    `/contribuicoes/corrigir_legenda/${meta.dns}/${meta.url}/${meta.youtubeId}/`,
+    LETRAS_BASE_URL
+  ).toString();
+}
+
 function extractFromUiSubtitlesPayload(script: string, lines: SyncedLyricLineDto[]): void {
   const editarKeyIndex = script.indexOf('"editar"');
   if (editarKeyIndex < 0) {
@@ -182,15 +344,66 @@ function isLoginPage(html: string): boolean {
 export class GetSyncedLyricsUseCase {
   constructor(private readonly httpClient: IHttpClient) {}
 
+  private parseAndValidateInputUrl(rawUrl: string): URL {
+    try {
+      const parsedUrl = new URL(rawUrl);
+
+      if (!isLetrasHost(parsedUrl.hostname)) {
+        throw new AppError('A URL deve ser do domínio letras.mus.br.', 400);
+      }
+
+      return parsedUrl;
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+
+      throw new AppError('URL inválida. Informe uma URL válida do letras.mus.br.', 400);
+    }
+  }
+
+  private async resolveSyncedLyricsUrl(parsedUrl: URL): Promise<URL> {
+    if (parsedUrl.pathname.includes('/contribuicoes/corrigir_legenda/')) {
+      return parsedUrl;
+    }
+
+    const songPageResponse = await this.httpClient.get<string>(parsedUrl.toString(), {
+      ...LETRAS_BROWSER_HEADERS
+    });
+
+    if (songPageResponse.status === 404) {
+      throw new AppError('Página da música não encontrada no letras.mus.br.', 404);
+    }
+
+    if (songPageResponse.status >= 400) {
+      throw new AppError('Falha ao consultar página pública da música.', 502);
+    }
+
+    const html = String(songPageResponse.data ?? '');
+
+    const meta = extractSongMetaFromPublicPage(html);
+    if (hasCompleteSongMeta(meta)) {
+      return new URL(buildContributionUrlFromMeta(meta));
+    }
+
+    const contributionUrl = extractContributionUrlFromPublicPage(parsedUrl, html);
+    if (contributionUrl) {
+      return new URL(contributionUrl);
+    }
+
+    throw new AppError(
+      'Não foi possível localizar dados de legenda sincronizada na página da música.',
+      404
+    );
+  }
+
   async execute(input: GetSyncedLyricsInputDto): Promise<GetSyncedLyricsOutputDto> {
     if (!input.url || input.url.trim().length === 0) {
       throw new AppError('Parâmetro "url" é obrigatório.', 400);
     }
 
-    const parsedUrl = new URL(input.url);
-    if (!parsedUrl.hostname.endsWith('letras.mus.br') || !parsedUrl.pathname.includes('/contribuicoes/corrigir_legenda/')) {
-      throw new AppError('A URL deve ser de corrigir_legenda do letras.mus.br.', 400);
-    }
+    const parsedUrl = this.parseAndValidateInputUrl(input.url);
+    const syncedLyricsUrl = await this.resolveSyncedLyricsUrl(parsedUrl);
 
     const cookies = [
       ...(await this.httpClient.getCookies(LETRAS_BASE_URL)),
@@ -223,7 +436,7 @@ export class GetSyncedLyricsUseCase {
       throw new AppError('Sessão expirada ou usuário não autenticado.', 401);
     }
 
-    const response = await this.httpClient.get<string>(parsedUrl.toString(), {
+    const response = await this.httpClient.get<string>(syncedLyricsUrl.toString(), {
       ...LETRAS_BROWSER_HEADERS
     });
 

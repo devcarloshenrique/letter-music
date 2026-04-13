@@ -30,6 +30,22 @@ function createLegSincHtml(linesCount = 22): string {
   `;
 }
 
+function createPublicPageWithUiLyricScript(): string {
+  return `
+    <html>
+      <body>
+        <script>
+          _omq.push(['ui/lyric', {
+            "DNS":"felipe-rodrigues",
+            "URL":"tudo-e-perda",
+            "YoutubeID":"qxzQR5uwWsk"
+          }]);
+        </script>
+      </body>
+    </html>
+  `;
+}
+
 const { mockHttpClient } = vi.hoisted(() => ({
   mockHttpClient: {
     postForm: vi.fn(),
@@ -68,27 +84,74 @@ describe('GET /api/lyrics/synced (integration)', () => {
       headers: {}
     });
 
+    mockHttpClient.get
+      .mockResolvedValueOnce({
+        status: 200,
+        data: createPublicPageWithUiLyricScript(),
+        headers: {
+          'content-length': '1500'
+        }
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        data: createLegSincHtml(22),
+        headers: {
+          'content-length': '9500'
+        }
+      });
+
+    const response = await request(app)
+      .get('/api/lyrics/synced')
+      .query({
+        url: 'https://www.letras.mus.br/felipe-rodrigues/tudo-e-perda/'
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.message).toBe('Legenda sincronizada extraída com sucesso.');
+    expect(Array.isArray(response.body.data.lines)).toBe(true);
+    expect(response.body.data.lines).toHaveLength(22);
+    expect(response.body.data.lines[0]).toEqual({ start: '21.8', end: '31.1', text: 'Linha 1' });
+    expect(response.body.data.video_url).toBe('https://www.youtube.com/watch?v=222');
+    expect(response.body.metadata).toBeDefined();
+    expect(typeof response.body.metadata.timestamp).toBe('string');
+    expect(response.body.metadata.path).toBe('/api/lyrics/synced');
+    expect(response.body.metadata.hidden).toEqual({ song_id: '111', video_id: '222', subtitle_id: '333' });
+  });
+
+  it('retorna erro estruturado quando query url não é enviada', async () => {
+    const response = await request(app)
+      .get('/api/lyrics/synced');
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+    expect(response.body.error.code).toBe('APP_ERROR');
+    expect(response.body.error.message).toContain('Parâmetro "url" é obrigatório');
+  });
+
+  it('retorna erro estruturado quando sessão não está autenticada', async () => {
+    mockHttpClient.getCookies
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
     mockHttpClient.get.mockResolvedValueOnce({
       status: 200,
-      data: createLegSincHtml(22),
+      data: createPublicPageWithUiLyricScript(),
       headers: {
-        'content-length': '9500'
+        'content-length': '1500'
       }
     });
 
     const response = await request(app)
       .get('/api/lyrics/synced')
       .query({
-        url: 'https://www.letras.mus.br/contribuicoes/corrigir_legenda/felipe-rodrigues/tudo-e-perda/qxzQR5uwWsk/'
+        url: 'https://www.letras.mus.br/felipe-rodrigues/tudo-e-perda/'
       });
 
-    expect(response.status).toBe(200);
-    expect(response.body.success).toBe(true);
-    expect(Array.isArray(response.body.data)).toBe(true);
-    expect(response.body.data).toHaveLength(22);
-    expect(response.body.data[0]).toEqual({ start: '21.8', end: '31.1', text: 'Linha 1' });
-    expect(response.body.metadata).toBeDefined();
-    expect(response.body.metadata.path).toBe('/api/lyrics/synced');
-    expect(response.body.metadata.hidden).toEqual({ song_id: '111', video_id: '222', subtitle_id: '333' });
+    expect(response.status).toBe(401);
+    expect(response.body.success).toBe(false);
+    expect(response.body.error.code).toBe('APP_ERROR');
+    expect(response.body.error.message).toContain('Sessão não autenticada');
   });
 });
