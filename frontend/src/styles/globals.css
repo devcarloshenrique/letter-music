@@ -28,6 +28,34 @@
 }
 
 @layer utilities {
+  /* Premium Scrollbar Styles */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: theme(--color-outline-variant / 40%);
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    background-clip: padding-box;
+    transition: background 0.2s ease;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: theme(--color-primary / 50%);
+  }
+
+  /* Firefox Support */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: theme(--color-outline-variant / 40%) transparent;
+  }
+
   .glass-surface {
     background: rgba(45, 43, 49, 0.6);
     backdrop-filter: blur(24px);
