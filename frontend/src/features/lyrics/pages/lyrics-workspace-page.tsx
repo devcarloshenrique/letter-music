@@ -26,6 +26,8 @@ export default function LyricsWorkspacePage() {
     playbackRate,
     playbackSpeeds,
     loopIndices,
+    loopRange,
+    setLoopRange,
     setSpeed,
     seekToLine,
     toggleLoop,
@@ -40,6 +42,11 @@ export default function LyricsWorkspacePage() {
     [seekToLine]
   );
 
+  const handleLoopToggle = useCallback((index: number) => {
+    // Use seekToLine with isShiftKey=true to allow multi-line selection via the loop icon
+    seekToLine(lines[index], true);
+  }, [lines, seekToLine]);
+
   const registerLineRef = useCallback((index: number, element: HTMLButtonElement | null) => {
     lineRefs.current[index] = element;
   }, []);
@@ -50,6 +57,11 @@ export default function LyricsWorkspacePage() {
 
   useEffect(() => {
     if (activeLineIndex < 0) {
+      return;
+    }
+
+    // Disable auto-scroll when a loop is active to prevent jittering up/down
+    if (loopIndices.length > 0) {
       return;
     }
 
@@ -77,9 +89,12 @@ export default function LyricsWorkspacePage() {
             lines={lines}
             activeLineIndex={activeLineIndex}
             loopIndices={loopIndices}
+            loopRange={loopRange}
             isLoading={syncedLyricsQuery.isLoading}
             errorMessage={syncedLyricsQuery.isError ? syncedLyricsQuery.error.message : undefined}
             onLineClick={handleLineClick}
+            onLoopToggle={handleLoopToggle}
+            onLoopRangeChange={setLoopRange}
             registerLineRef={registerLineRef}
             onManualScroll={handleManualScroll}
           />

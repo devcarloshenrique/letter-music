@@ -19,6 +19,7 @@ export function useLyricsPlayer(lines: SyncedLine[]) {
   const [currentTime, setCurrentTime] = useState(0);
   const [playbackRate, setPlaybackRate] = useState<number>(1);
   const [loopIndices, setLoopIndices] = useState<number[]>([]);
+  const [loopRange, setLoopRange] = useState<{ startOffset: number; endOffset: number } | null>(null);
 
   // Track if player is ready to ensure intervals and other dependent effects start at the right time.
   const [isPlayerReady, setIsPlayerReady] = useState(false);
@@ -129,6 +130,13 @@ export function useLyricsPlayer(lines: SyncedLine[]) {
     }
   }, [activeLineIndex, loopIndices.length]);
 
+  useEffect(() => {
+    // Custom marker range is valid only for single-line loop mode.
+    if (loopIndices.length !== 1 && loopRange !== null) {
+      setLoopRange(null);
+    }
+  }, [loopIndices, loopRange]);
+
   const handlePlayerReady = useCallback(
     (event: { target: unknown }) => {
       playerRef.current = event.target as PlayerLike;
@@ -176,10 +184,16 @@ export function useLyricsPlayer(lines: SyncedLine[]) {
         const lastLine = lines[loopIndices[loopIndices.length - 1]];
 
         if (firstLine && lastLine) {
-          const loopStart = parseSyncedTimeToSeconds(firstLine.start);
-          const loopEnd = parseSyncedTimeToSeconds(lastLine.end);
+          let loopStart = parseSyncedTimeToSeconds(firstLine.start);
+          let loopEnd = parseSyncedTimeToSeconds(lastLine.end);
 
-          if (liveTime >= loopEnd && liveTime < loopEnd + 1) {
+          // Apply custom offsets only in single-line mode
+          if (loopIndices.length === 1 && loopRange) {
+            loopStart += loopRange.startOffset;
+            loopEnd = parseSyncedTimeToSeconds(firstLine.start) + loopRange.endOffset;
+          }
+
+          if (liveTime >= loopEnd) {
             player.seekTo(loopStart, true);
           }
         }
@@ -187,7 +201,7 @@ export function useLyricsPlayer(lines: SyncedLine[]) {
     }, 50);
 
     return () => window.clearInterval(timer);
-  }, [isPlayerReady, loopIndices, lines]);
+  }, [isPlayerReady, loopIndices, loopRange, lines]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -240,6 +254,8 @@ export function useLyricsPlayer(lines: SyncedLine[]) {
     playbackRate,
     playbackSpeeds: PLAYBACK_SPEEDS,
     loopIndices,
+    loopRange,
+    setLoopRange,
     setSpeed,
     seekToLine,
     cycleSpeed,

@@ -1,16 +1,20 @@
-import { ChevronLeft, LoaderCircle, TriangleAlert } from 'lucide-react';
+import { ChevronLeft, LoaderCircle, TriangleAlert, Repeat } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { SyncedLine } from '../../home/types/home.types';
-import { formatSyncedTimeLabel } from '../utils/lyrics-time.utils';
+import { formatSyncedTimeLabel, parseSyncedTimeToSeconds, formatSecondsLabel } from '../utils/lyrics-time.utils';
+import { LoopRangeSelector } from './loop-range-selector';
 
 type LyricsPanelProps = {
   queryUrl: string;
   lines: SyncedLine[];
   activeLineIndex: number;
   loopIndices?: number[];
+  loopRange?: { startOffset: number; endOffset: number } | null;
   isLoading: boolean;
   errorMessage?: string;
   onLineClick: (line: SyncedLine, event: React.MouseEvent) => void;
+  onLoopToggle: (index: number) => void;
+  onLoopRangeChange: (range: { startOffset: number; endOffset: number } | null) => void;
   registerLineRef: (index: number, element: HTMLButtonElement | null) => void;
   onManualScroll: () => void;
 };
@@ -20,9 +24,12 @@ export function LyricsPanel({
   lines,
   activeLineIndex,
   loopIndices = [],
+  loopRange,
   isLoading,
   errorMessage,
   onLineClick,
+  onLoopToggle,
+  onLoopRangeChange,
   registerLineRef,
   onManualScroll
 }: LyricsPanelProps) {
@@ -69,38 +76,75 @@ export function LyricsPanel({
         )}
 
         {!isLoading && !errorMessage && lines.length > 0 && (
-          <div className='space-y-6 pb-32'>
+          <div className='max-w-4xl pb-32'>
             {lines.map((line, index) => {
               const isActive = index === activeLineIndex;
               const isLooped = loopIndices.includes(index);
+              const isSingleLoop = loopIndices.length === 1 && isLooped;
 
               return (
-                <button
+                <div 
                   key={`${line.start}-${line.end}-${line.text}`}
-                  ref={(element) => registerLineRef(index, element)}
-                  type='button'
-                  onClick={(e) => onLineClick(line, e)}
-                  title={`${formatSyncedTimeLabel(line.start)} → ${formatSyncedTimeLabel(line.end)}`}
-                  aria-label={`Ir para ${formatSyncedTimeLabel(line.start)}: ${line.text}`}
-                  aria-pressed={isActive}
-                  className={`premium-transition group relative block w-full cursor-pointer rounded-2xl px-5 py-4 text-left ${
-                    isActive || isLooped
-                      ? 'scale-[1.02] border border-primary/30 bg-primary/10 text-tertiary shadow-glow-primary'
-                      : 'border border-transparent text-on-surface-variant hover:border-outline-variant/30 hover:bg-surface-high/70 hover:text-tertiary'
-                  }`}
+                  className={`premium-transition group relative flex flex-col border-b border-white/5 py-4 transition-all duration-300`}
                 >
-                  {(isActive || isLooped) && (
-                    <span
-                      className={`absolute -left-2 top-1/2 h-11 w-1 -translate-y-1/2 rounded-full shadow-glow-primary ${
-                        isActive ? 'bg-primary' : 'bg-primary/40'
+                  <div className="flex items-center gap-6">
+                    {/* Compact Loop Toggle */}
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); onLoopToggle(index); }}
+                      className={`premium-transition flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
+                        isLooped 
+                          ? 'bg-primary text-on-primary shadow-glow-primary' 
+                          : 'text-on-surface-variant/40 hover:text-primary'
                       }`}
-                    />
-                  )}
-                  <p className={`leading-relaxed md:text-2xl ${isActive ? 'text-2xl font-bold' : isLooped ? 'text-xl font-bold color-primary/80' : 'text-xl font-medium'}`}>{line.text}</p>
-                  <p className='mt-2 text-xs font-bold uppercase tracking-widest text-secondary'>
-                    {formatSyncedTimeLabel(line.start)} — {formatSyncedTimeLabel(line.end)}
-                  </p>
-                </button>
+                    >
+                      <Repeat size={14} fill={isLooped ? 'currentColor' : 'none'} />
+                    </button>
+
+                    <div className="flex-1">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className={`text-[10px] font-mono transition-colors duration-300 ${
+                          isLooped ? 'text-primary font-bold opacity-100' : 'text-on-surface-variant/40'
+                        }`}>
+                          {isSingleLoop && loopRange 
+                            ? `${formatSecondsLabel(parseSyncedTimeToSeconds(line.start) + (loopRange?.startOffset ?? 0))} — ${formatSecondsLabel(parseSyncedTimeToSeconds(line.start) + (loopRange?.endOffset ?? 0))}`
+                            : `${formatSyncedTimeLabel(line.start)} — ${formatSyncedTimeLabel(line.end)}`
+                          }
+                        </span>
+                      </div>
+                      <button
+                        ref={(element) => registerLineRef(index, element)}
+                        type='button'
+                        onClick={(e) => onLineClick(line, e)}
+                        className="w-full text-left"
+                      >
+                        <p className={`premium-transition leading-tight transition-all duration-300 ${
+                          isActive 
+                            ? 'text-4xl font-black text-tertiary' 
+                            : isLooped 
+                            ? 'text-3xl font-extrabold text-primary' 
+                            : 'text-2xl font-bold text-on-surface-variant/50 hover:text-on-surface-variant'
+                        }`}>
+                          {line.text}
+                        </p>
+                      </button>
+
+                      {/* Expanded Loop Controls - Only for specific line if it's the only one or top of range */}
+                      {isSingleLoop && (
+                        <div className="mt-2">
+                          <LoopRangeSelector
+                            duration={parseSyncedTimeToSeconds(line.end) - parseSyncedTimeToSeconds(line.start)}
+                            startOffset={loopRange?.startOffset ?? 0}
+                            endOffset={loopRange?.endOffset ?? (parseSyncedTimeToSeconds(line.end) - parseSyncedTimeToSeconds(line.start))}
+                            onRangeChange={(start, end) => onLoopRangeChange({ startOffset: start, endOffset: end })}
+                            onReset={() => onLoopRangeChange(null)}
+                            startTimeLabel={formatSecondsLabel(parseSyncedTimeToSeconds(line.start) + (loopRange?.startOffset ?? 0))}
+                            endTimeLabel={formatSecondsLabel(parseSyncedTimeToSeconds(line.start) + (loopRange?.endOffset ?? (parseSyncedTimeToSeconds(line.end) - parseSyncedTimeToSeconds(line.start))))}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               );
             })}
           </div>
