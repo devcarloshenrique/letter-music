@@ -28,9 +28,25 @@ export const openApiSpec = {
                 schema: {
                   type: 'object',
                   properties: {
-                    ok: { type: 'boolean', example: true }
+                    success: { type: 'boolean', example: true },
+                    message: { type: 'string', example: 'API saudável.' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        ok: { type: 'boolean', example: true }
+                      },
+                      required: ['ok']
+                    },
+                    metadata: {
+                      type: 'object',
+                      properties: {
+                        timestamp: { type: 'string', format: 'date-time' },
+                        path: { type: 'string', example: '/health' }
+                      },
+                      required: ['timestamp', 'path']
+                    }
                   },
-                  required: ['ok']
+                  required: ['success', 'message', 'data', 'metadata']
                 }
               }
             }

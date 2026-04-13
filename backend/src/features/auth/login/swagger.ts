@@ -27,11 +27,27 @@ export const loginPathSpec = {
               schema: {
                 type: 'object',
                 properties: {
-                  authenticated: { type: 'boolean', example: true },
-                  message: { type: 'string' },
-                  cookieCount: { type: 'number', example: 12 }
+                  success: { type: 'boolean', example: true },
+                  message: { type: 'string', example: 'Sessão iniciada com sucesso.' },
+                  data: {
+                    type: 'object',
+                    properties: {
+                      authenticated: { type: 'boolean', example: true },
+                      message: { type: 'string' },
+                      cookieCount: { type: 'number', example: 12 }
+                    },
+                    required: ['authenticated', 'message', 'cookieCount']
+                  },
+                  metadata: {
+                    type: 'object',
+                    properties: {
+                      timestamp: { type: 'string', format: 'date-time' },
+                      path: { type: 'string', example: '/api/auth/login' }
+                    },
+                    required: ['timestamp', 'path']
+                  }
                 },
-                required: ['authenticated', 'message', 'cookieCount']
+                required: ['success', 'message', 'data', 'metadata']
               }
             }
           }
@@ -43,9 +59,17 @@ export const loginPathSpec = {
               schema: {
                 type: 'object',
                 properties: {
-                  error: { type: 'string' }
+                  success: { type: 'boolean', example: false },
+                  error: {
+                    type: 'object',
+                    properties: {
+                      code: { type: 'string', example: 'APP_ERROR' },
+                      message: { type: 'string' }
+                    },
+                    required: ['code', 'message']
+                  }
                 },
-                required: ['error']
+                required: ['success', 'error']
               }
             }
           }
@@ -57,9 +81,17 @@ export const loginPathSpec = {
               schema: {
                 type: 'object',
                 properties: {
-                  error: { type: 'string' }
+                  success: { type: 'boolean', example: false },
+                  error: {
+                    type: 'object',
+                    properties: {
+                      code: { type: 'string', example: 'APP_ERROR' },
+                      message: { type: 'string' }
+                    },
+                    required: ['code', 'message']
+                  }
                 },
-                required: ['error']
+                required: ['success', 'error']
               }
             }
           }
@@ -71,9 +103,17 @@ export const loginPathSpec = {
               schema: {
                 type: 'object',
                 properties: {
-                  error: { type: 'string' }
+                  success: { type: 'boolean', example: false },
+                  error: {
+                    type: 'object',
+                    properties: {
+                      code: { type: 'string', example: 'APP_ERROR' },
+                      message: { type: 'string' }
+                    },
+                    required: ['code', 'message']
+                  }
                 },
-                required: ['error']
+                required: ['success', 'error']
               }
             }
           }

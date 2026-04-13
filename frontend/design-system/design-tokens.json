@@ -1,0 +1,101 @@
+{
+  "theme": {
+    "colors": {
+      "base": {
+        "background": "#08070A",
+        "surface": "#1B191D",
+        "surface-raised": "#211F23",
+        "glass-bg": "rgba(20, 19, 23, 0.6)"
+      },
+      "brand": {
+        "primary": "#BF40FF",
+        "primary-glow": "rgba(191, 64, 255, 0.4)",
+        "primary-border": "rgba(191, 64, 255, 0.1)",
+        "secondary": "#00E5FF",
+        "secondary-glow": "rgba(0, 229, 255, 0.4)",
+        "secondary-border": "rgba(0, 229, 255, 0.1)"
+      },
+      "text": {
+        "heading": "#F7F2F7",
+        "body": "#F7F2F7",
+        "muted": "#AEAAAE",
+        "inactive": "#737373"
+      },
+      "status": {
+        "error": "#FF6E84",
+        "success": "#00E5FF"
+      }
+    },
+    "typography": {
+      "font-family": {
+        "primary": "Inter, sans-serif"
+      },
+      "weight": {
+        "normal": 400,
+        "semibold": 600,
+        "bold": 700,
+        "black": 900
+      },
+      "letter-spacing": {
+        "hero": "-0.05em",
+        "normal": "0",
+        "label": "0.1em"
+      },
+      "size": {
+        "xs": "0.75rem",
+        "sm": "0.875rem",
+        "base": "1rem",
+        "lg": "1.125rem",
+        "xl": "1.25rem",
+        "2xl": "1.5rem",
+        "3xl": "1.875rem",
+        "4xl": "2.25rem",
+        "5xl": "3rem"
+      }
+    },
+    "spacing": {
+      "unit": "4px",
+      "scale": {
+        "p-6": "1.5rem",
+        "p-8": "2rem",
+        "gap-4": "1rem",
+        "gap-6": "1.5rem",
+        "gap-8": "2rem"
+      }
+    },
+    "radii": {
+      "sm": "0.25rem",
+      "md": "0.375rem",
+      "lg": "0.5rem",
+      "xl": "0.75rem",
+      "2xl": "1rem",
+      "round": "9999px"
+    },
+    "effects": {
+      "glass": {
+        "backdrop-filter": "blur(12px)",
+        "border": "1px solid rgba(191, 64, 255, 0.1)"
+      },
+      "shadows": {
+        "glow-primary": "0 0 15px rgba(191, 64, 255, 0.4)",
+        "glow-secondary": "0 0 15px rgba(0, 229, 255, 0.4)",
+        "glow-header": "0 0 20px rgba(191, 64, 255, 0.15)"
+      }
+    },
+    "motion": {
+      "duration": {
+        "fast": "150ms",
+        "normal": "300ms",
+        "slow": "700ms"
+      },
+      "timing-function": {
+        "bounce": "cubic-bezier(0.4, 0, 0.2, 1)"
+      },
+      "scale": {
+        "hover-sm": "scale(1.02)",
+        "hover-lg": "scale(1.05)",
+        "active": "scale(0.95)"
+      }
+    }
+  }
+}

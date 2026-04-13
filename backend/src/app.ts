@@ -17,7 +17,17 @@ app.get('/openapi.json', (_req, res) => {
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiSpec));
 
 app.get('/health', (_req, res) => {
-  res.json({ ok: true });
+  res.json({
+    success: true,
+    message: 'API saudável.',
+    data: {
+      ok: true
+    },
+    metadata: {
+      timestamp: new Date().toISOString(),
+      path: '/health'
+    }
+  });
 });
 
 app.post('/api/auth/login', loginController.handle);

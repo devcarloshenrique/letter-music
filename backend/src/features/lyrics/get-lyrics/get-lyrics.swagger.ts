@@ -24,16 +24,32 @@ export const getLyricsPathSpec = {
               schema: {
                 type: 'object',
                 properties: {
-                  sourceUrl: { type: 'string', format: 'uri' },
-                  title: { type: 'string' },
-                  artist: { type: 'string' },
-                  lyrics: { type: 'string' },
-                  stanzas: {
-                    type: 'array',
-                    items: { type: 'string' }
+                  success: { type: 'boolean', example: true },
+                  message: { type: 'string', example: 'Letra extraída com sucesso.' },
+                  data: {
+                    type: 'object',
+                    properties: {
+                      sourceUrl: { type: 'string', format: 'uri' },
+                      title: { type: 'string' },
+                      artist: { type: 'string' },
+                      lyrics: { type: 'string' },
+                      stanzas: {
+                        type: 'array',
+                        items: { type: 'string' }
+                      }
+                    },
+                    required: ['sourceUrl', 'title', 'artist', 'lyrics', 'stanzas']
+                  },
+                  metadata: {
+                    type: 'object',
+                    properties: {
+                      timestamp: { type: 'string', format: 'date-time' },
+                      path: { type: 'string', example: '/api/lyrics' }
+                    },
+                    required: ['timestamp', 'path']
                   }
                 },
-                required: ['sourceUrl', 'title', 'artist', 'lyrics', 'stanzas']
+                required: ['success', 'message', 'data', 'metadata']
               }
             }
           }
@@ -45,9 +61,17 @@ export const getLyricsPathSpec = {
               schema: {
                 type: 'object',
                 properties: {
-                  error: { type: 'string' }
+                  success: { type: 'boolean', example: false },
+                  error: {
+                    type: 'object',
+                    properties: {
+                      code: { type: 'string', example: 'APP_ERROR' },
+                      message: { type: 'string' }
+                    },
+                    required: ['code', 'message']
+                  }
                 },
-                required: ['error']
+                required: ['success', 'error']
               }
             }
           }
@@ -59,9 +83,17 @@ export const getLyricsPathSpec = {
               schema: {
                 type: 'object',
                 properties: {
-                  error: { type: 'string' }
+                  success: { type: 'boolean', example: false },
+                  error: {
+                    type: 'object',
+                    properties: {
+                      code: { type: 'string', example: 'APP_ERROR' },
+                      message: { type: 'string' }
+                    },
+                    required: ['code', 'message']
+                  }
                 },
-                required: ['error']
+                required: ['success', 'error']
               }
             }
           }
@@ -73,9 +105,17 @@ export const getLyricsPathSpec = {
               schema: {
                 type: 'object',
                 properties: {
-                  error: { type: 'string' }
+                  success: { type: 'boolean', example: false },
+                  error: {
+                    type: 'object',
+                    properties: {
+                      code: { type: 'string', example: 'APP_ERROR' },
+                      message: { type: 'string' }
+                    },
+                    required: ['code', 'message']
+                  }
                 },
-                required: ['error']
+                required: ['success', 'error']
               }
             }
           }

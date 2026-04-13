@@ -33,10 +33,13 @@ describe('GET /api/lyrics', () => {
       .query({ url: 'https://www.letras.mus.br/harpa-crista/853769/' });
 
     expect(response.status).toBe(200);
-    expect(response.body.title).toBe('Porque Ele Vive - 545');
-    expect(response.body.artist).toBe('Harpa Cristã');
-    expect(response.body.stanzas).toHaveLength(2);
-    expect(response.body.lyrics).toContain('Deus enviou Seu Filho amado');
+    expect(response.body.success).toBe(true);
+    expect(response.body.message).toBe('Letra extraída com sucesso.');
+    expect(response.body.data.title).toBe('Porque Ele Vive - 545');
+    expect(response.body.data.artist).toBe('Harpa Cristã');
+    expect(response.body.data.stanzas).toHaveLength(2);
+    expect(response.body.data.lyrics).toContain('Deus enviou Seu Filho amado');
+    expect(response.body.metadata.path).toBe('/api/lyrics');
   });
 
   it('retorna 400 para URL inválida', async () => {
@@ -45,7 +48,9 @@ describe('GET /api/lyrics', () => {
       .query({ url: 'https://google.com/song/123' });
 
     expect(response.status).toBe(400);
-    expect(response.body.error).toContain('domínio letras.mus.br');
+    expect(response.body.success).toBe(false);
+    expect(response.body.error.code).toBe('APP_ERROR');
+    expect(response.body.error.message).toContain('domínio letras.mus.br');
   });
 
   it('retorna 404 quando não encontra bloco de letra', async () => {
@@ -58,7 +63,9 @@ describe('GET /api/lyrics', () => {
       .query({ url: 'https://www.letras.mus.br/harpa-crista/853769/' });
 
     expect(response.status).toBe(404);
-    expect(response.body.error).toContain('Letra não encontrada');
+    expect(response.body.success).toBe(false);
+    expect(response.body.error.code).toBe('APP_ERROR');
+    expect(response.body.error.message).toContain('Letra não encontrada');
   });
 });
 
@@ -69,5 +76,15 @@ describe('Swagger docs', () => {
     expect(response.status).toBe(200);
     expect(response.body.openapi).toBe('3.0.3');
     expect(response.body.paths['/api/lyrics']).toBeDefined();
+  });
+
+  it('retorna health no envelope padrao', async () => {
+    const response = await request(app).get('/health');
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.message).toBe('API saudável.');
+    expect(response.body.data).toEqual({ ok: true });
+    expect(response.body.metadata.path).toBe('/health');
   });
 });

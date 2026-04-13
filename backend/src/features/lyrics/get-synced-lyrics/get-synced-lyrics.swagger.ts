@@ -28,16 +28,27 @@ export const getSyncedLyricsPathSpec = {
                   success: { type: 'boolean', example: true },
                   message: { type: 'string', example: 'Legenda sincronizada extraída com sucesso.' },
                   data: {
-                    type: 'array',
-                    items: {
-                      type: 'object',
-                      properties: {
-                        start: { type: 'string', example: '21.8' },
-                        end: { type: 'string', example: '31.1' },
-                        text: { type: 'string', example: 'Frase da música' }
+                    type: 'object',
+                    properties: {
+                      video_url: {
+                        type: 'string',
+                        format: 'uri',
+                        example: 'https://www.youtube.com/watch?v=qxzQR5uwWsk'
                       },
-                      required: ['start', 'end', 'text']
-                    }
+                      lines: {
+                        type: 'array',
+                        items: {
+                          type: 'object',
+                          properties: {
+                            start: { type: 'string', example: '21.8' },
+                            end: { type: 'string', example: '31.1' },
+                            text: { type: 'string', example: 'Frase da música' }
+                          },
+                          required: ['start', 'end', 'text']
+                        }
+                      }
+                    },
+                    required: ['lines']
                   },
                   metadata: {
                     type: 'object',
@@ -61,7 +72,8 @@ export const getSyncedLyricsPathSpec = {
                     },
                     required: ['timestamp', 'path', 'hidden']
                   }
-                }
+                },
+                required: ['success', 'message', 'data', 'metadata']
               }
             }
           }
@@ -72,8 +84,18 @@ export const getSyncedLyricsPathSpec = {
             'application/json': {
               schema: {
                 type: 'object',
-                properties: { error: { type: 'string' } },
-                required: ['error']
+                properties: {
+                  success: { type: 'boolean', example: false },
+                  error: {
+                    type: 'object',
+                    properties: {
+                      code: { type: 'string', example: 'APP_ERROR' },
+                      message: { type: 'string' }
+                    },
+                    required: ['code', 'message']
+                  }
+                },
+                required: ['success', 'error']
               }
             }
           }
@@ -84,8 +106,18 @@ export const getSyncedLyricsPathSpec = {
             'application/json': {
               schema: {
                 type: 'object',
-                properties: { error: { type: 'string' } },
-                required: ['error']
+                properties: {
+                  success: { type: 'boolean', example: false },
+                  error: {
+                    type: 'object',
+                    properties: {
+                      code: { type: 'string', example: 'APP_ERROR' },
+                      message: { type: 'string' }
+                    },
+                    required: ['code', 'message']
+                  }
+                },
+                required: ['success', 'error']
               }
             }
           }
@@ -96,8 +128,40 @@ export const getSyncedLyricsPathSpec = {
             'application/json': {
               schema: {
                 type: 'object',
-                properties: { error: { type: 'string' } },
-                required: ['error']
+                properties: {
+                  success: { type: 'boolean', example: false },
+                  error: {
+                    type: 'object',
+                    properties: {
+                      code: { type: 'string', example: 'APP_ERROR' },
+                      message: { type: 'string' }
+                    },
+                    required: ['code', 'message']
+                  }
+                },
+                required: ['success', 'error']
+              }
+            }
+          }
+        },
+        '500': {
+          description: 'Erro interno do servidor',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: false },
+                  error: {
+                    type: 'object',
+                    properties: {
+                      code: { type: 'string', example: 'INTERNAL_SERVER_ERROR' },
+                      message: { type: 'string' }
+                    },
+                    required: ['code', 'message']
+                  }
+                },
+                required: ['success', 'error']
               }
             }
           }
