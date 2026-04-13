@@ -23,19 +23,22 @@ export default function LyricsWorkspacePage() {
 
   const {
     activeLineIndex,
-    isPlaying,
     playbackRate,
     playbackSpeeds,
-    lineLoopEnabled,
-    abRepeat,
+    loopIndices,
     setSpeed,
     seekToLine,
-    togglePlayPause,
-    setLineLoopEnabled,
-    toggleAbRepeat,
+    toggleLoop,
     handlePlayerReady,
     handlePlayerStateChange
   } = useLyricsPlayer(lines);
+
+  const handleLineClick = useCallback(
+    (line: any, event: React.MouseEvent) => {
+      seekToLine(line, event.shiftKey || event.ctrlKey || event.metaKey);
+    },
+    [seekToLine]
+  );
 
   const registerLineRef = useCallback((index: number, element: HTMLButtonElement | null) => {
     lineRefs.current[index] = element;
@@ -73,9 +76,10 @@ export default function LyricsWorkspacePage() {
             queryUrl={queryUrl}
             lines={lines}
             activeLineIndex={activeLineIndex}
+            loopIndices={loopIndices}
             isLoading={syncedLyricsQuery.isLoading}
             errorMessage={syncedLyricsQuery.isError ? syncedLyricsQuery.error.message : undefined}
-            onLineClick={seekToLine}
+            onLineClick={handleLineClick}
             registerLineRef={registerLineRef}
             onManualScroll={handleManualScroll}
           />
@@ -84,16 +88,11 @@ export default function LyricsWorkspacePage() {
         <div className='flex min-h-0 flex-1 flex-col overflow-y-auto lg:h-full lg:flex-[35] lg:border-l lg:border-outline-variant/10'>
           <LyricsControlPanel
             videoId={videoId}
-            queryUrl={queryUrl}
             playbackRate={playbackRate}
             playbackSpeeds={playbackSpeeds}
-            isPlaying={isPlaying}
-            lineLoopEnabled={lineLoopEnabled}
-            abRepeatEnabled={abRepeat.enabled}
+            loopActive={loopIndices.length > 0}
             onSpeedSelect={setSpeed}
-            onTogglePlayPause={togglePlayPause}
-            onToggleLoop={() => setLineLoopEnabled((value) => !value)}
-            onToggleAbRepeat={toggleAbRepeat}
+            onToggleLoop={toggleLoop}
             onPlayerReady={handlePlayerReady}
             onPlayerStateChange={handlePlayerStateChange}
           />

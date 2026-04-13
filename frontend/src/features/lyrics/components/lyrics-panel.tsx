@@ -7,9 +7,10 @@ type LyricsPanelProps = {
   queryUrl: string;
   lines: SyncedLine[];
   activeLineIndex: number;
+  loopIndices?: number[];
   isLoading: boolean;
   errorMessage?: string;
-  onLineClick: (line: SyncedLine) => void;
+  onLineClick: (line: SyncedLine, event: React.MouseEvent) => void;
   registerLineRef: (index: number, element: HTMLButtonElement | null) => void;
   onManualScroll: () => void;
 };
@@ -18,6 +19,7 @@ export function LyricsPanel({
   queryUrl,
   lines,
   activeLineIndex,
+  loopIndices = [],
   isLoading,
   errorMessage,
   onLineClick,
@@ -70,24 +72,31 @@ export function LyricsPanel({
           <div className='space-y-6 pb-32'>
             {lines.map((line, index) => {
               const isActive = index === activeLineIndex;
+              const isLooped = loopIndices.includes(index);
 
               return (
                 <button
                   key={`${line.start}-${line.end}-${line.text}`}
                   ref={(element) => registerLineRef(index, element)}
                   type='button'
-                  onClick={() => onLineClick(line)}
+                  onClick={(e) => onLineClick(line, e)}
                   title={`${formatSyncedTimeLabel(line.start)} → ${formatSyncedTimeLabel(line.end)}`}
                   aria-label={`Ir para ${formatSyncedTimeLabel(line.start)}: ${line.text}`}
                   aria-pressed={isActive}
                   className={`premium-transition group relative block w-full cursor-pointer rounded-2xl px-5 py-4 text-left ${
-                    isActive
+                    isActive || isLooped
                       ? 'scale-[1.02] border border-primary/30 bg-primary/10 text-tertiary shadow-glow-primary'
                       : 'border border-transparent text-on-surface-variant hover:border-outline-variant/30 hover:bg-surface-high/70 hover:text-tertiary'
                   }`}
                 >
-                  {isActive && <span className='absolute -left-2 top-1/2 h-11 w-1 -translate-y-1/2 rounded-full bg-primary shadow-glow-primary' />}
-                  <p className={`leading-relaxed md:text-2xl ${isActive ? 'text-2xl font-bold' : 'text-xl font-medium'}`}>{line.text}</p>
+                  {(isActive || isLooped) && (
+                    <span
+                      className={`absolute -left-2 top-1/2 h-11 w-1 -translate-y-1/2 rounded-full shadow-glow-primary ${
+                        isActive ? 'bg-primary' : 'bg-primary/40'
+                      }`}
+                    />
+                  )}
+                  <p className={`leading-relaxed md:text-2xl ${isActive ? 'text-2xl font-bold' : isLooped ? 'text-xl font-bold color-primary/80' : 'text-xl font-medium'}`}>{line.text}</p>
                   <p className='mt-2 text-xs font-bold uppercase tracking-widest text-secondary'>
                     {formatSyncedTimeLabel(line.start)} — {formatSyncedTimeLabel(line.end)}
                   </p>

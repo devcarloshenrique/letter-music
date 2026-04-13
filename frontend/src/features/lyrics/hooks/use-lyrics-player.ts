@@ -10,12 +10,7 @@ type PlayerLike = {
   pauseVideo: () => void;
   setPlaybackRate: (rate: number) => void;
   getCurrentTime: () => number;
-};
-
-type AbRepeatState = {
-  enabled: boolean;
-  start: number | null;
-  end: number | null;
+  getPlayerState: () => number;
 };
 
 export function useLyricsPlayer(lines: SyncedLine[]) {
@@ -23,12 +18,7 @@ export function useLyricsPlayer(lines: SyncedLine[]) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [playbackRate, setPlaybackRate] = useState<number>(1);
-  const [lineLoopEnabled, setLineLoopEnabled] = useState(false);
-  const [abRepeat, setAbRepeat] = useState<AbRepeatState>({
-    enabled: false,
-    start: null,
-    end: null
-  });
+  const [loopIndices, setLoopIndices] = useState<number[]>([]);
 
   // Track if player is ready to ensure intervals and other dependent effects start at the right time.
   const [isPlayerReady, setIsPlayerReady] = useState(false);
@@ -72,12 +62,24 @@ export function useLyricsPlayer(lines: SyncedLine[]) {
   }, []);
 
   const seekToLine = useCallback(
-    (line: SyncedLine) => {
-      seekTo(parseSyncedTimeToSeconds(line.start));
-      playerRef.current?.playVideo();
-      setIsPlaying(true);
+    (line: SyncedLine, isShiftKey = false) => {
+      const lineIndex = lines.indexOf(line);
+
+      if (isShiftKey && lineIndex !== -1) {
+        setLoopIndices((prev) => {
+          if (prev.includes(lineIndex)) {
+            return prev.filter((i) => i !== lineIndex).sort((a, b) => a - b);
+          }
+          return [...prev, lineIndex].sort((a, b) => a - b);
+        });
+      } else {
+        setLoopIndices(lineIndex !== -1 ? [lineIndex] : []);
+        seekTo(parseSyncedTimeToSeconds(line.start));
+        playerRef.current?.playVideo();
+        setIsPlaying(true);
+      }
     },
-    [seekTo]
+    [lines, seekTo]
   );
 
   const setSpeed = useCallback((rate: number) => {
@@ -119,23 +121,13 @@ export function useLyricsPlayer(lines: SyncedLine[]) {
     [activeLineIndex, lines, seekToLine]
   );
 
-  const toggleAbRepeat = useCallback(() => {
-    if (!abRepeat.enabled) {
-      const sourceLine = lines[activeLineIndex];
-      const start = sourceLine ? parseSyncedTimeToSeconds(sourceLine.start) : Math.max(0, currentTime - 2);
-      const end = sourceLine ? parseSyncedTimeToSeconds(sourceLine.end) : currentTime + 2;
-
-      setAbRepeat({
-        enabled: true,
-        start,
-        end
-      });
-
-      return;
+  const toggleLoop = useCallback(() => {
+    if (loopIndices.length > 0) {
+      setLoopIndices([]);
+    } else if (activeLineIndex !== -1) {
+      setLoopIndices([activeLineIndex]);
     }
-
-    setAbRepeat({ enabled: false, start: null, end: null });
-  }, [abRepeat.enabled, activeLineIndex, currentTime, lines]);
+  }, [activeLineIndex, loopIndices.length]);
 
   const handlePlayerReady = useCallback(
     (event: { target: unknown }) => {
@@ -162,33 +154,40 @@ export function useLyricsPlayer(lines: SyncedLine[]) {
         return;
       }
 
+      const playerState = player.getPlayerState();
+      // Only run synchronization logic if the player is actually playing (State 1)
+      if (playerState !== 1) {
+        return;
+      }
+
       const liveTime = player.getCurrentTime();
-      
+
       // Update at 50ms intervals for high precision sync
-      // We check if the time has actually changed to avoid wasteful renders
+      // We use a small threshold to avoid excessive state updates if the change is negligible
       setCurrentTime((prevTime) => {
-        if (Math.abs(prevTime - liveTime) > 0.05) {
+        if (Math.abs(prevTime - liveTime) > 0.02) {
           return liveTime;
         }
         return prevTime;
       });
 
-      if (lineLoopEnabled && activeLineIndex >= 0) {
-        const activeLine = lines[activeLineIndex];
-        const lineEnd = parseSyncedTimeToSeconds(activeLine.end);
+      if (loopIndices.length > 0) {
+        const firstLine = lines[loopIndices[0]];
+        const lastLine = lines[loopIndices[loopIndices.length - 1]];
 
-        if (liveTime >= lineEnd) {
-          player.seekTo(parseSyncedTimeToSeconds(activeLine.start), true);
+        if (firstLine && lastLine) {
+          const loopStart = parseSyncedTimeToSeconds(firstLine.start);
+          const loopEnd = parseSyncedTimeToSeconds(lastLine.end);
+
+          if (liveTime >= loopEnd && liveTime < loopEnd + 1) {
+            player.seekTo(loopStart, true);
+          }
         }
-      }
-
-      if (abRepeat.enabled && abRepeat.start !== null && abRepeat.end !== null && liveTime >= abRepeat.end) {
-        player.seekTo(abRepeat.start, true);
       }
     }, 50);
 
     return () => window.clearInterval(timer);
-  }, [isPlayerReady, abRepeat.enabled, abRepeat.end, abRepeat.start, activeLineIndex, lineLoopEnabled, lines]);
+  }, [isPlayerReady, loopIndices, lines]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -213,12 +212,7 @@ export function useLyricsPlayer(lines: SyncedLine[]) {
 
       if (key === 'l') {
         event.preventDefault();
-        setLineLoopEnabled((current) => !current);
-      }
-
-      if (key === 'r') {
-        event.preventDefault();
-        toggleAbRepeat();
+        toggleLoop();
       }
 
       if (event.key === 'ArrowUp') {
@@ -237,7 +231,7 @@ export function useLyricsPlayer(lines: SyncedLine[]) {
     return () => {
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [cycleSpeed, jumpToAdjacentLine, toggleAbRepeat, togglePlayPause]);
+  }, [cycleSpeed, jumpToAdjacentLine, toggleLoop, togglePlayPause]);
 
   return {
     activeLineIndex,
@@ -245,14 +239,12 @@ export function useLyricsPlayer(lines: SyncedLine[]) {
     isPlaying,
     playbackRate,
     playbackSpeeds: PLAYBACK_SPEEDS,
-    lineLoopEnabled,
-    abRepeat,
+    loopIndices,
     setSpeed,
     seekToLine,
     cycleSpeed,
     togglePlayPause,
-    setLineLoopEnabled,
-    toggleAbRepeat,
+    toggleLoop,
     handlePlayerReady,
     handlePlayerStateChange
   };

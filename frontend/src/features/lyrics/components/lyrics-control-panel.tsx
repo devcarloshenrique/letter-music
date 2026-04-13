@@ -1,41 +1,31 @@
-import { ExternalLink, Keyboard, Pause, Play, Repeat, Repeat1 } from 'lucide-react';
+import { Keyboard, Repeat } from 'lucide-react';
 import YouTube from 'react-youtube';
 
 type LyricsControlPanelProps = {
   videoId: string | null;
-  queryUrl: string;
   playbackRate: number;
   playbackSpeeds: readonly number[];
-  isPlaying: boolean;
-  lineLoopEnabled: boolean;
-  abRepeatEnabled: boolean;
+  loopActive: boolean;
   onSpeedSelect: (rate: number) => void;
-  onTogglePlayPause: () => void;
   onToggleLoop: () => void;
-  onToggleAbRepeat: () => void;
   onPlayerReady: (event: { target: unknown }) => void;
   onPlayerStateChange: (event: { data: number }) => void;
 };
 
 export function LyricsControlPanel({
   videoId,
-  queryUrl,
   playbackRate,
   playbackSpeeds,
-  isPlaying,
-  lineLoopEnabled,
-  abRepeatEnabled,
+  loopActive,
   onSpeedSelect,
-  onTogglePlayPause,
   onToggleLoop,
-  onToggleAbRepeat,
   onPlayerReady,
   onPlayerStateChange
 }: LyricsControlPanelProps) {
   return (
     <aside className='flex w-full flex-col gap-6 bg-surface p-6 md:p-8'>
-      <div>
-        <div className='aspect-video overflow-hidden rounded-2xl bg-surface-high'>
+      <div className='glass-surface overflow-hidden rounded-2xl'>
+        <div className='aspect-video bg-surface-high'>
           {videoId ? (
             <YouTube
               videoId={videoId}
@@ -81,30 +71,22 @@ export function LyricsControlPanel({
       </div>
 
       <div className='glass-surface rounded-2xl p-5'>
-        <p className='text-label text-on-surface-variant'>Playback Modes</p>
-        <div className='mt-3 grid grid-cols-2 gap-3'>
+        <p className='text-label text-on-surface-variant'>Playback Mode</p>
+        <div className='mt-3'>
           <button
             type='button'
             onClick={onToggleLoop}
-            className={`interactive-scale premium-transition flex items-center justify-center gap-2 rounded-xl border px-3 py-3 text-xs font-bold uppercase tracking-wide ${
-              lineLoopEnabled
-                ? 'border-primary/30 bg-primary/15 text-primary'
+            className={`interactive-scale premium-transition flex w-full items-center justify-center gap-2 rounded-xl border px-3 py-3 text-xs font-bold uppercase tracking-wide ${
+              loopActive
+                ? 'border-primary/30 bg-primary/15 text-primary shadow-glow-primary'
                 : 'border-outline-variant/40 bg-surface-high text-on-surface-variant hover:text-on-surface'
             }`}
           >
-            <Repeat size={14} /> Loop Line
+            <Repeat size={14} /> {loopActive ? 'Loop Active' : 'Enable Loop'}
           </button>
-          <button
-            type='button'
-            onClick={onToggleAbRepeat}
-            className={`interactive-scale premium-transition flex items-center justify-center gap-2 rounded-xl border px-3 py-3 text-xs font-bold uppercase tracking-wide ${
-              abRepeatEnabled
-                ? 'border-secondary/30 bg-secondary/15 text-secondary'
-                : 'border-outline-variant/40 bg-surface-high text-on-surface-variant hover:text-on-surface'
-            }`}
-          >
-            <Repeat1 size={14} /> A-B Repeat
-          </button>
+          <p className='mt-3 text-[10px] text-center text-on-surface-variant/50 uppercase tracking-widest font-bold'>
+            Ctrl/Shift + Click on lyrics to loop multiple lines
+          </p>
         </div>
       </div>
 
@@ -122,15 +104,11 @@ export function LyricsControlPanel({
             <kbd className='rounded bg-background px-2 py-0.5 font-black text-on-surface'>L</kbd>
           </li>
           <li className='flex items-center justify-between rounded-lg bg-surface-high/70 px-3 py-2'>
-            <span>A-B Repeat</span>
-            <kbd className='rounded bg-background px-2 py-0.5 font-black text-on-surface'>R</kbd>
-          </li>
-          <li className='flex items-center justify-between rounded-lg bg-surface-high/70 px-3 py-2'>
             <span>Play / Pause</span>
             <kbd className='rounded bg-background px-2 py-0.5 font-black text-on-surface'>Space</kbd>
           </li>
           <li className='flex items-center justify-between rounded-lg bg-surface-high/70 px-3 py-2'>
-            <span>Linha anterior / próxima</span>
+            <span>Prev / Next Line</span>
             <kbd className='rounded bg-background px-2 py-0.5 font-black text-on-surface'>↑ / ↓</kbd>
           </li>
         </ul>
