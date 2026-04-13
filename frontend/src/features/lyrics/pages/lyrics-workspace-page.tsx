@@ -1,0 +1,104 @@
+import { useQuery } from '@tanstack/react-query';
+import { useCallback, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { homeService } from '../../home/services/home.service';
+import { LyricsControlPanel } from '../components/lyrics-control-panel';
+import { LyricsPanel } from '../components/lyrics-panel';
+import { useLyricsPlayer } from '../hooks/use-lyrics-player';
+import { extractYouTubeVideoId } from '../utils/lyrics-time.utils';
+
+export default function LyricsWorkspacePage() {
+  const [searchParams] = useSearchParams();
+  const queryUrl = searchParams.get('url')?.trim() ?? '';
+
+  const syncedLyricsQuery = useQuery({
+    queryKey: ['synced-lyrics', queryUrl],
+    queryFn: () => homeService.fetchSyncedLyrics(queryUrl),
+    enabled: queryUrl.length > 0
+  });
+
+  const lines = syncedLyricsQuery.data?.lines ?? [];
+  const lineRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const manualScrollPauseUntilRef = useRef(0);
+
+  const {
+    activeLineIndex,
+    isPlaying,
+    playbackRate,
+    playbackSpeeds,
+    lineLoopEnabled,
+    abRepeat,
+    setSpeed,
+    seekToLine,
+    togglePlayPause,
+    setLineLoopEnabled,
+    toggleAbRepeat,
+    handlePlayerReady,
+    handlePlayerStateChange
+  } = useLyricsPlayer(lines);
+
+  const registerLineRef = useCallback((index: number, element: HTMLButtonElement | null) => {
+    lineRefs.current[index] = element;
+  }, []);
+
+  const handleManualScroll = useCallback(() => {
+    manualScrollPauseUntilRef.current = Date.now() + 1800;
+  }, []);
+
+  useEffect(() => {
+    if (activeLineIndex < 0) {
+      return;
+    }
+
+    if (Date.now() <= manualScrollPauseUntilRef.current) {
+      return;
+    }
+
+    const lineElement = lineRefs.current[activeLineIndex];
+    if (lineElement) {
+      // Use block: 'center' to keep the active line in middle of the screen
+      // behavior: 'smooth' is nice, but for very fast songs it might lag behind.
+      // We keep it smooth for premium feel but ensure the 50ms trigger is fast enough.
+      lineElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [activeLineIndex]);
+
+  const videoId = extractYouTubeVideoId(syncedLyricsQuery.data?.video_url);
+
+  return (
+    <div className='flex h-full w-full flex-col overflow-hidden pt-[72px]'>
+      <main className='flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row'>
+        <div className='flex h-[50vh] min-h-0 flex-col border-b border-outline-variant/10 lg:h-full lg:flex-[65] lg:border-b-0'>
+          <LyricsPanel
+            queryUrl={queryUrl}
+            lines={lines}
+            activeLineIndex={activeLineIndex}
+            isLoading={syncedLyricsQuery.isLoading}
+            errorMessage={syncedLyricsQuery.isError ? syncedLyricsQuery.error.message : undefined}
+            onLineClick={seekToLine}
+            registerLineRef={registerLineRef}
+            onManualScroll={handleManualScroll}
+          />
+        </div>
+
+        <div className='flex min-h-0 flex-1 flex-col overflow-y-auto lg:h-full lg:flex-[35] lg:border-l lg:border-outline-variant/10'>
+          <LyricsControlPanel
+            videoId={videoId}
+            queryUrl={queryUrl}
+            playbackRate={playbackRate}
+            playbackSpeeds={playbackSpeeds}
+            isPlaying={isPlaying}
+            lineLoopEnabled={lineLoopEnabled}
+            abRepeatEnabled={abRepeat.enabled}
+            onSpeedSelect={setSpeed}
+            onTogglePlayPause={togglePlayPause}
+            onToggleLoop={() => setLineLoopEnabled((value) => !value)}
+            onToggleAbRepeat={toggleAbRepeat}
+            onPlayerReady={handlePlayerReady}
+            onPlayerStateChange={handlePlayerStateChange}
+          />
+        </div>
+      </main>
+    </div>
+  );
+}

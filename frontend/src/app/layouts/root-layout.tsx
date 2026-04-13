@@ -71,7 +71,7 @@ export function RootLayout({ children }: PropsWithChildren) {
           shouldLockViewport ? 'scale-105 select-none blur-[40px]' : ''
         }`}
       >
-        <main className="dot-grid flex h-full w-full flex-col items-center justify-center px-8 pb-20 pt-24">
+        <main className="dot-grid h-full w-full overflow-hidden">
           {children}
         </main>
       </div>

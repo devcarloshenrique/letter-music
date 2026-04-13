@@ -1,0 +1,1 @@
+export { default as LyricsWorkspacePage } from './pages/lyrics-workspace-page';
