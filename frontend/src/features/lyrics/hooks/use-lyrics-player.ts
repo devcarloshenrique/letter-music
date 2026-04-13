@@ -30,18 +30,37 @@ export function useLyricsPlayer(lines: SyncedLine[]) {
     end: null
   });
 
+  // Track if player is ready to ensure intervals and other dependent effects start at the right time.
+  const [isPlayerReady, setIsPlayerReady] = useState(false);
+
   const activeLineIndex = useMemo(() => {
     if (lines.length === 0) return -1;
 
-    // Fast track: check current time against each line
-    // We add a small offset (0.05s) to handle jitter and ensure the change feels snappy
+    // A small offset handles jitter and allows snappy transitions
     const time = currentTime + 0.05;
 
-    return lines.findIndex((line) => {
+    // Find the current active line.
+    // If we're between lines, we want to keep the previous line active until the next line starts.
+    const index = lines.findIndex((line, i) => {
       const start = parseSyncedTimeToSeconds(line.start);
+      // For the last line, we just check if time >= start and time <= end + some buffer.
+      // But for middle lines, we check if time looks like it belongs to this line or the gap after it.
+      const nextLine = lines[i + 1];
+      const nextStart = nextLine ? parseSyncedTimeToSeconds(nextLine.start) : Infinity;
+
+      // The line is active if the time is after its start and before the next line's start.
+      // For the last line, we check if the time is between start and end (with some margin so it doesn't just disappear).
+      if (nextLine) {
+        return time >= start && time < nextStart;
+      }
+      
       const end = parseSyncedTimeToSeconds(line.end);
-      return time >= start && time <= end;
+      // Keep the last line active for a short while after it ends, or exactly until end if preferred.
+      // E.g., stay active until 5 seconds after its end if there's no next line.
+      return time >= start && time <= end + 5;
     });
+
+    return index;
   }, [lines, currentTime]);
 
   const seekTo = useCallback((seconds: number) => {
@@ -122,6 +141,7 @@ export function useLyricsPlayer(lines: SyncedLine[]) {
     (event: { target: unknown }) => {
       playerRef.current = event.target as PlayerLike;
       playerRef.current.setPlaybackRate(playbackRate);
+      setIsPlayerReady(true);
     },
     [playbackRate]
   );
@@ -131,7 +151,7 @@ export function useLyricsPlayer(lines: SyncedLine[]) {
   }, []);
 
   useEffect(() => {
-    if (!playerRef.current) {
+    if (!playerRef.current || !isPlayerReady) {
       return;
     }
 
@@ -145,7 +165,13 @@ export function useLyricsPlayer(lines: SyncedLine[]) {
       const liveTime = player.getCurrentTime();
       
       // Update at 50ms intervals for high precision sync
-      setCurrentTime(liveTime);
+      // We check if the time has actually changed to avoid wasteful renders
+      setCurrentTime((prevTime) => {
+        if (Math.abs(prevTime - liveTime) > 0.05) {
+          return liveTime;
+        }
+        return prevTime;
+      });
 
       if (lineLoopEnabled && activeLineIndex >= 0) {
         const activeLine = lines[activeLineIndex];
@@ -162,7 +188,7 @@ export function useLyricsPlayer(lines: SyncedLine[]) {
     }, 50);
 
     return () => window.clearInterval(timer);
-  }, [abRepeat.enabled, abRepeat.end, abRepeat.start, activeLineIndex, lineLoopEnabled, lines]);
+  }, [isPlayerReady, abRepeat.enabled, abRepeat.end, abRepeat.start, activeLineIndex, lineLoopEnabled, lines]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
