@@ -20,13 +20,15 @@ describe('GET /api/lyrics', () => {
   });
 
   it('retorna array de músicas quando q/page são válidos', async () => {
-    searchLyricsMock.mockResolvedValueOnce([
-      {
-        title: 'Superman',
-        description: 'Música do Eminem no Letras.',
-        url: 'https://www.letras.mus.br/eminem/superman/'
-      }
-    ]);
+    searchLyricsMock.mockResolvedValueOnce({
+      results: [
+        {
+          title: 'Superman',
+          description: 'Música do Eminem no Letras.',
+          url: 'https://www.letras.mus.br/eminem/superman/'
+        }
+      ]
+    });
 
     const response = await request(app)
       .get('/api/lyrics')
@@ -39,7 +41,11 @@ describe('GET /api/lyrics', () => {
     expect(response.body.data[0].title).toBe('Superman');
     expect(response.body.data[0].url).toBe('https://www.letras.mus.br/eminem/superman/');
     expect(response.body.metadata.page).toBe(2);
-    expect(response.body.metadata.hasMore).toBe(true);
+    expect(response.body.metadata.pageSize).toBe(10);
+    expect(response.body.metadata.totalPages).toBe(1);
+    
+    
+    
     expect(response.body.metadata.path).toBe('/api/lyrics');
   });
 
@@ -63,14 +69,18 @@ describe('GET /api/lyrics', () => {
 
   it('executa fallback quando primeira tentativa não encontra resultados', async () => {
     searchLyricsMock
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([
-        {
-          title: 'Not Afraid',
-          description: 'Resultado no fallback',
-          url: 'https://www.letras.mus.br/eminem/not-afraid/'
-        }
-      ]);
+      .mockResolvedValueOnce({
+        results: []
+      })
+      .mockResolvedValueOnce({
+        results: [
+          {
+            title: 'Not Afraid',
+            description: 'Resultado no fallback',
+            url: 'https://www.letras.mus.br/eminem/not-afraid/'
+          }
+        ]
+      });
 
     const response = await request(app)
       .get('/api/lyrics')
@@ -79,11 +89,19 @@ describe('GET /api/lyrics', () => {
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.data).toHaveLength(1);
+    
+    
     expect(searchLyricsMock).toHaveBeenCalledTimes(2);
   });
 
   it('retorna 404 quando busca não encontra músicas', async () => {
-    searchLyricsMock.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    searchLyricsMock
+      .mockResolvedValueOnce({
+        results: []
+      })
+      .mockResolvedValueOnce({
+        results: []
+      });
 
     const response = await request(app)
       .get('/api/lyrics')

@@ -12,6 +12,6 @@ export type GetLyricsSongDto = {
 export type GetLyricsOutputDto = {
   songs: GetLyricsSongDto[];
   page: number;
-  hasMore: boolean;
-  total: number | null;
+  pageSize: number;
+  totalPages: number;
 };

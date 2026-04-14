@@ -60,12 +60,23 @@ export const getLyricsPathSpec = {
                     type: 'object',
                     properties: {
                       page: { type: 'integer', example: 2 },
-                      hasMore: { type: 'boolean', example: true },
-                      total: { type: 'integer', nullable: true, example: null },
+                      pageSize: { type: 'integer', example: 10 },
+                      totalPages: {
+                        type: 'integer',
+                        example: 10,
+                        description: 'Total de itens retornados na página.'
+                      },
+
                       timestamp: { type: 'string', format: 'date-time' },
                       path: { type: 'string', example: '/api/lyrics' }
                     },
-                    required: ['page', 'hasMore', 'total', 'timestamp', 'path']
+                    required: [
+                      'page',
+                      'pageSize',
+                      'totalPages',
+                      'timestamp',
+                      'path'
+                    ]
                   }
                 },
                 required: ['success', 'message', 'data', 'metadata']

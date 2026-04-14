@@ -2,6 +2,7 @@ import { chromium } from 'playwright';
 import type {
   ILyricsSearchProvider,
   ScrapedLyricsSearchResult,
+  SearchLyricsOutput,
   SearchLyricsInput
 } from './iser-scraping.provider';
 
@@ -10,6 +11,7 @@ const PAGE_BUTTON_SELECTOR = '.gsc-cursor-page';
 const SEARCH_WAIT_TIMEOUT_MS = 12000;
 const BROWSER_TIMEOUT_MS = 60000;
 const MAX_RESULTS_PER_PAGE = 10;
+const MAX_NAVIGABLE_PAGES = 10;
 const SOLR_BASE_URL = 'https://solr.sscdn.co/letras';
 const SOLR_MODELS = ['m1', 'm2', 'm3', 'm4', 'm5'] as const;
 
@@ -30,6 +32,7 @@ type SolrDoc = {
 type SolrPayload = {
   response?: {
     docs?: SolrDoc[];
+    numFound?: number;
   };
 };
 
@@ -98,7 +101,7 @@ function mapSolrDocToResult(doc: SolrDoc): (ScrapedLyricsSearchResult & { score:
 }
 
 export class PlaywrightScrapingProvider implements ILyricsSearchProvider {
-  private async searchViaSolr(input: SearchLyricsInput): Promise<ScrapedLyricsSearchResult[]> {
+  private async searchViaSolr(input: SearchLyricsInput): Promise<SearchLyricsOutput> {
     const encodedQuery = encodeURIComponent(input.query);
 
     const modelResponses = await Promise.all(
@@ -112,18 +115,27 @@ export class PlaywrightScrapingProvider implements ILyricsSearchProvider {
         });
 
         if (!response.ok) {
-          return [] as SolrDoc[];
+          return {
+            docs: [] as SolrDoc[],
+            numFound: 0
+          };
         }
 
         const text = await response.text();
         const parsed = parseSolrPayload(text);
-        return parsed.response?.docs ?? [];
+        return {
+          docs: parsed.response?.docs ?? [],
+          numFound: Number(parsed.response?.numFound ?? 0)
+        };
       })
     );
 
     const dedupedByUrl = new Map<string, ScrapedLyricsSearchResult & { score: number }>();
+    let rawTotalResults = 0;
 
-    for (const docs of modelResponses) {
+    for (const { docs, numFound } of modelResponses) {
+      rawTotalResults = Math.max(rawTotalResults, numFound);
+
       for (const doc of docs) {
         const mapped = mapSolrDocToResult(doc);
         if (!mapped) {
@@ -142,20 +154,27 @@ export class PlaywrightScrapingProvider implements ILyricsSearchProvider {
     const start = (input.page - 1) * MAX_RESULTS_PER_PAGE;
     const end = start + MAX_RESULTS_PER_PAGE;
 
-    return ordered.slice(start, end).map(({ title, description, url }) => ({
-      title,
-      description,
-      url
-    }));
+    const totalPages = Math.min(
+      MAX_NAVIGABLE_PAGES,
+      Math.ceil(rawTotalResults / MAX_RESULTS_PER_PAGE) || 1
+    );
+
+    return {
+      results: ordered.slice(start, end).map(({ title, description, url }) => ({
+        title,
+        description,
+        url
+      })),
+    };
   }
 
-  async searchLyrics(input: SearchLyricsInput): Promise<ScrapedLyricsSearchResult[]> {
+  async searchLyrics(input: SearchLyricsInput): Promise<SearchLyricsOutput> {
     // The first attempt uses Solr; explicit fallback skips Solr and forces browser strategy.
     if (!input.fallback) {
       try {
-        const solrResults = await this.searchViaSolr(input);
-        if (solrResults.length > 0) {
-          return solrResults;
+        const solrOutput = await this.searchViaSolr(input);
+        if (solrOutput.results.length > 0) {
+          return solrOutput;
         }
       } catch {
         // Falls back to Playwright when Solr is temporarily unavailable.
@@ -195,7 +214,9 @@ export class PlaywrightScrapingProvider implements ILyricsSearchProvider {
           timeout: SEARCH_WAIT_TIMEOUT_MS
         });
       } catch {
-        return [];
+        return {
+          results: [],
+        };
       }
 
       if (input.page > 1) {
@@ -216,7 +237,9 @@ export class PlaywrightScrapingProvider implements ILyricsSearchProvider {
           );
 
           if (!clicked) {
-            return [];
+            return {
+              results: [],
+            };
           }
 
           await browserPage.waitForFunction(
@@ -232,24 +255,37 @@ export class PlaywrightScrapingProvider implements ILyricsSearchProvider {
         }
       }
 
-      return await browserPage.$$eval(SEARCH_RESULT_SELECTOR, (nodes, limit) => {
-        return nodes
-          .slice(0, limit)
-          .map((node) => {
-            const titleAnchor = node.querySelector<HTMLAnchorElement>('.gs-title a.gs-title[href]');
-            const title = (titleAnchor?.textContent ?? '').trim();
-            const description =
-              (node.querySelector<HTMLElement>('.gs-snippet')?.textContent ?? '').trim();
-            const url = titleAnchor?.href?.trim() ?? '';
+      const [results, maxVisiblePage] = await Promise.all([
+        browserPage.$$eval(SEARCH_RESULT_SELECTOR, (nodes, limit) => {
+          return nodes
+            .slice(0, limit)
+            .map((node) => {
+              const titleAnchor = node.querySelector<HTMLAnchorElement>('.gs-title a.gs-title[href]');
+              const title = (titleAnchor?.textContent ?? '').trim();
+              const description =
+                (node.querySelector<HTMLElement>('.gs-snippet')?.textContent ?? '').trim();
+              const url = titleAnchor?.href?.trim() ?? '';
 
-            return {
-              title,
-              description,
-              url
-            };
-          })
-          .filter((result) => result.title.length > 0 && result.url.length > 0);
-      }, MAX_RESULTS_PER_PAGE);
+              return {
+                title,
+                description,
+                url
+              };
+            })
+            .filter((result) => result.title.length > 0 && result.url.length > 0);
+        }, MAX_RESULTS_PER_PAGE),
+        browserPage.$$eval(PAGE_BUTTON_SELECTOR, (nodes) => {
+          const pages = nodes
+            .map((node) => Number.parseInt(node.textContent?.trim() ?? '', 10))
+            .filter((value) => Number.isInteger(value) && value > 0);
+
+          return pages.length > 0 ? Math.max(...pages) : 1;
+        })
+      ]);
+
+      return {
+        results,
+      };
     } finally {
       await browser.close();
     }

@@ -1,6 +1,7 @@
 import { AppError } from '../../../shared/errors/app-error';
 import type {
   ILyricsSearchProvider,
+  SearchLyricsOutput,
   ScrapedLyricsSearchResult
 } from '../../../shared/providers/scraping/iser-scraping.provider';
 import type { GetLyricsInputDto, GetLyricsOutputDto, GetLyricsSongDto } from './get-lyrics.dto';
@@ -9,6 +10,7 @@ const ALLOWED_HOSTS = new Set(['www.letras.mus.br', 'letras.mus.br']);
 const BLOCKED_PATH_MARKERS = ['/significado', '/aprenda-ingles'];
 const MIN_PAGE = 1;
 const MAX_PAGE = 10;
+const PAGE_SIZE = 10;
 
 export class GetLyricsUseCase {
   constructor(private readonly searchProvider: ILyricsSearchProvider) {}
@@ -24,17 +26,20 @@ export class GetLyricsUseCase {
     }
 
     const page = this.parseAndValidatePage(input.page);
-    const songs = await this.searchWithFallback(query, page);
+    const searchOutput = await this.searchWithFallback(query, page);
+    const songs = this.normalizeAndFilterResults(searchOutput.results);
 
     if (songs.length === 0) {
       throw new AppError('Nenhuma música encontrada para a busca informada.', 404);
     }
 
+    const totalPages = songs.length;
+
     return {
       songs,
       page,
-      hasMore: page < MAX_PAGE,
-      total: null
+      pageSize: PAGE_SIZE,
+      totalPages
     };
   }
 
@@ -54,17 +59,17 @@ export class GetLyricsUseCase {
     return rawPage;
   }
 
-  private async searchWithFallback(query: string, page: number): Promise<GetLyricsSongDto[]> {
+  private async searchWithFallback(query: string, page: number): Promise<SearchLyricsOutput> {
     try {
       const firstAttempt = await this.searchProvider.searchLyrics({ query, page, fallback: false });
-      const firstAttemptNormalized = this.normalizeAndFilterResults(firstAttempt);
+      const firstAttemptNormalized = this.normalizeAndFilterResults(firstAttempt.results);
 
       if (firstAttemptNormalized.length > 0) {
-        return firstAttemptNormalized;
+        return firstAttempt;
       }
 
       const fallbackAttempt = await this.searchProvider.searchLyrics({ query, page, fallback: true });
-      return this.normalizeAndFilterResults(fallbackAttempt);
+      return fallbackAttempt;
     } catch (error) {
       if (error instanceof AppError) {
         throw error;

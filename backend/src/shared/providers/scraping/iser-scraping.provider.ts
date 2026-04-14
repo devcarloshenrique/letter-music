@@ -16,10 +16,14 @@ export type SearchLyricsInput = {
   fallback?: boolean;
 };
 
+export type SearchLyricsOutput = {
+  results: ScrapedLyricsSearchResult[];
+};
+
 export interface IScrapingProvider {
   scrapeLyrics(url: URL): Promise<ScrapedLyrics>;
 }
 
 export interface ILyricsSearchProvider {
-  searchLyrics(input: SearchLyricsInput): Promise<ScrapedLyricsSearchResult[]>;
+  searchLyrics(input: SearchLyricsInput): Promise<SearchLyricsOutput>;
 }

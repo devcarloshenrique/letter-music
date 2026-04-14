@@ -13,13 +13,16 @@ describe('GetLyricsUseCase', () => {
     const provider = createProviderMock();
     const useCase = new GetLyricsUseCase(provider);
 
-    vi.mocked(provider.searchLyrics).mockResolvedValueOnce([
-      {
-        title: 'Superman',
-        description: 'Música do Eminem no Letras.',
-        url: 'https://www.letras.mus.br/eminem/superman/'
-      }
-    ]);
+    vi.mocked(provider.searchLyrics).mockResolvedValueOnce({
+      results: [
+        {
+          title: 'Superman',
+          description: 'Música do Eminem no Letras.',
+          url: 'https://www.letras.mus.br/eminem/superman/'
+        }
+      ],
+      
+    });
 
     const output = await useCase.execute({
       q: 'eminem superman',
@@ -27,7 +30,11 @@ describe('GetLyricsUseCase', () => {
     });
 
     expect(output.page).toBe(2);
-    expect(output.hasMore).toBe(true);
+    expect(output.pageSize).toBe(10);
+    expect(output.totalPages).toBe(1);
+    
+    
+    
     expect(output.songs).toHaveLength(1);
     expect(output.songs[0]?.url).toBe('https://www.letras.mus.br/eminem/superman/');
   });
@@ -36,28 +43,31 @@ describe('GetLyricsUseCase', () => {
     const provider = createProviderMock();
     const useCase = new GetLyricsUseCase(provider);
 
-    vi.mocked(provider.searchLyrics).mockResolvedValueOnce([
-      {
-        title: 'Superman',
-        description: 'Música do Eminem no Letras.',
-        url: 'https://www.letras.mus.br/eminem/superman/'
-      },
-      {
-        title: 'Superman duplicada',
-        description: 'Mesmo link com hash',
-        url: 'https://www.letras.mus.br/eminem/superman/#trecho'
-      },
-      {
-        title: 'Significado',
-        description: 'Página de significado',
-        url: 'https://www.letras.mus.br/eminem/significado.html'
-      },
-      {
-        title: 'Artista',
-        description: 'Página de artista',
-        url: 'https://www.letras.mus.br/eminem/'
-      }
-    ]);
+    vi.mocked(provider.searchLyrics).mockResolvedValueOnce({
+      results: [
+        {
+          title: 'Superman',
+          description: 'Música do Eminem no Letras.',
+          url: 'https://www.letras.mus.br/eminem/superman/'
+        },
+        {
+          title: 'Superman duplicada',
+          description: 'Mesmo link com hash',
+          url: 'https://www.letras.mus.br/eminem/superman/#trecho'
+        },
+        {
+          title: 'Significado',
+          description: 'Página de significado',
+          url: 'https://www.letras.mus.br/eminem/significado.html'
+        },
+        {
+          title: 'Artista',
+          description: 'Página de artista',
+          url: 'https://www.letras.mus.br/eminem/'
+        }
+      ],
+      
+    });
 
     const output = await useCase.execute({ q: 'eminem', page: 1 });
 
@@ -70,14 +80,20 @@ describe('GetLyricsUseCase', () => {
     const useCase = new GetLyricsUseCase(provider);
 
     vi.mocked(provider.searchLyrics)
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([
-        {
-          title: 'Not Afraid',
-          description: 'Resultado no fallback',
-          url: 'https://www.letras.mus.br/eminem/not-afraid/'
-        }
-      ]);
+      .mockResolvedValueOnce({
+        results: [],
+        
+      })
+      .mockResolvedValueOnce({
+        results: [
+          {
+            title: 'Not Afraid',
+            description: 'Resultado no fallback',
+            url: 'https://www.letras.mus.br/eminem/not-afraid/'
+          }
+        ],
+        
+      });
 
     const output = await useCase.execute({ q: 'eminem', page: 3 });
 
@@ -93,6 +109,27 @@ describe('GetLyricsUseCase', () => {
       page: 3,
       fallback: true
     });
+    
+    
+  });
+
+  it('expõe totalPages como quantidade de itens retornados', async () => {
+    const provider = createProviderMock();
+    const useCase = new GetLyricsUseCase(provider);
+
+    vi.mocked(provider.searchLyrics).mockResolvedValueOnce({
+      results: [
+        {
+          title: 'Song',
+          description: 'Desc',
+          url: 'https://www.letras.mus.br/eminem/song/'
+        }
+      ],
+      
+    });
+
+    const output = await useCase.execute({ q: 'eminem', page: 2 });
+    expect(output.totalPages).toBe(1);
   });
 
   it('lança AppError 400 quando q está ausente', async () => {
@@ -118,7 +155,15 @@ describe('GetLyricsUseCase', () => {
     const provider = createProviderMock();
     const useCase = new GetLyricsUseCase(provider);
 
-    vi.mocked(provider.searchLyrics).mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    vi.mocked(provider.searchLyrics)
+      .mockResolvedValueOnce({
+        results: [],
+        
+      })
+      .mockResolvedValueOnce({
+        results: [],
+        
+      });
 
     await expect(
       useCase.execute({

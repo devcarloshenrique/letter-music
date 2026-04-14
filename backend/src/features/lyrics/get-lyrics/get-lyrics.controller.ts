@@ -17,8 +17,8 @@ export class GetLyricsController {
         data: output.songs,
         metadata: {
           page: output.page,
-          hasMore: output.hasMore,
-          total: output.total,
+          pageSize: output.pageSize,
+          totalPages: output.totalPages,
           timestamp: new Date().toISOString(),
           path: req.path
         }
