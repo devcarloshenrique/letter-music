@@ -1,5 +1,4 @@
 import type { NextFunction, Request, Response } from 'express';
-import { AppError } from '../../../shared/errors/app-error';
 import { GetLyricsUseCase } from './get-lyrics.usecase';
 
 export class GetLyricsController {
@@ -7,14 +6,19 @@ export class GetLyricsController {
 
   handle = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const url = typeof req.query.url === 'string' ? req.query.url : '';
-      const output = await this.useCase.execute({ url });
-      
-      res.status(200).json({
+      const q = typeof req.query.q === 'string' ? req.query.q : '';
+      const pageRaw = typeof req.query.page === 'string' ? Number(req.query.page) : undefined;
+
+      const output = await this.useCase.execute({ q, page: pageRaw });
+
+      res.json({
         success: true,
-        message: 'Letra extraída com sucesso.',
-        data: output,
+        message: 'Busca realizada com sucesso.',
+        data: output.songs,
         metadata: {
+          page: output.page,
+          hasMore: output.hasMore,
+          total: output.total,
           timestamp: new Date().toISOString(),
           path: req.path
         }

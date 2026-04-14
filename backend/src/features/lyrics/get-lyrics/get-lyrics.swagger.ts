@@ -2,51 +2,70 @@ export const getLyricsPathSpec = {
   '/api/lyrics': {
     get: {
       tags: ['Lyrics'],
-      summary: 'Extrai letra de uma URL do letras.mus.br',
+      summary: 'Busca músicas no letras.mus.br por termo textual',
       parameters: [
         {
-          name: 'url',
+          name: 'q',
           in: 'query',
           required: true,
-          description: 'URL da música no letras.mus.br',
+          description: 'Termo de busca (música/artista)',
           schema: {
             type: 'string',
-            format: 'uri',
-            example: 'https://www.letras.mus.br/harpa-crista/853769/'
+            example: 'eminem superman'
+          }
+        },
+        {
+          name: 'page',
+          in: 'query',
+          required: false,
+          description: 'Página da busca entre 1 e 10',
+          schema: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 10,
+            default: 1
           }
         }
       ],
       responses: {
         '200': {
-          description: 'Letra extraída com sucesso',
+          description: 'Busca realizada com sucesso',
           content: {
             'application/json': {
               schema: {
                 type: 'object',
                 properties: {
                   success: { type: 'boolean', example: true },
-                  message: { type: 'string', example: 'Letra extraída com sucesso.' },
+                  message: { type: 'string', example: 'Busca realizada com sucesso.' },
                   data: {
-                    type: 'object',
-                    properties: {
-                      sourceUrl: { type: 'string', format: 'uri' },
-                      title: { type: 'string' },
-                      artist: { type: 'string' },
-                      lyrics: { type: 'string' },
-                      stanzas: {
-                        type: 'array',
-                        items: { type: 'string' }
-                      }
-                    },
-                    required: ['sourceUrl', 'title', 'artist', 'lyrics', 'stanzas']
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        title: { type: 'string', example: 'Superman' },
+                        description: {
+                          type: 'string',
+                          example: 'Música de Eminem com letra e tradução no Letras.'
+                        },
+                        url: {
+                          type: 'string',
+                          format: 'uri',
+                          example: 'https://www.letras.mus.br/eminem/superman/'
+                        }
+                      },
+                      required: ['title', 'description', 'url']
+                    }
                   },
                   metadata: {
                     type: 'object',
                     properties: {
+                      page: { type: 'integer', example: 2 },
+                      hasMore: { type: 'boolean', example: true },
+                      total: { type: 'integer', nullable: true, example: null },
                       timestamp: { type: 'string', format: 'date-time' },
                       path: { type: 'string', example: '/api/lyrics' }
                     },
-                    required: ['timestamp', 'path']
+                    required: ['page', 'hasMore', 'total', 'timestamp', 'path']
                   }
                 },
                 required: ['success', 'message', 'data', 'metadata']
@@ -55,7 +74,7 @@ export const getLyricsPathSpec = {
           }
         },
         '400': {
-          description: 'URL inválida ou ausente',
+          description: 'Parâmetros de busca inválidos',
           content: {
             'application/json': {
               schema: {
@@ -77,7 +96,7 @@ export const getLyricsPathSpec = {
           }
         },
         '404': {
-          description: 'Letra não encontrada na página',
+          description: 'Nenhuma música encontrada para a busca',
           content: {
             'application/json': {
               schema: {
@@ -99,7 +118,7 @@ export const getLyricsPathSpec = {
           }
         },
         '502': {
-          description: 'Falha na comunicação com o site ou scraping',
+          description: 'Falha técnica no scraping da busca',
           content: {
             'application/json': {
               schema: {

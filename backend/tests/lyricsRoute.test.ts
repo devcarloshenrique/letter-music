@@ -1,71 +1,109 @@
 import request from 'supertest';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import axios from 'axios';
 import { app } from '../src/app';
 
-vi.mock('axios');
+const { searchLyricsMock } = vi.hoisted(() => ({
+  searchLyricsMock: vi.fn()
+}));
 
-const mockedAxios = vi.mocked(axios, true);
+vi.mock('../src/shared/providers/scraping/playwright-scraping.provider', () => {
+  class PlaywrightScrapingProvider {
+    searchLyrics = searchLyricsMock;
+  }
+
+  return { PlaywrightScrapingProvider };
+});
 
 describe('GET /api/lyrics', () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
-  it('retorna a letra quando URL é válida e HTML contém lyric-original', async () => {
-    mockedAxios.get.mockResolvedValueOnce({
-      data: `
-        <html>
-          <body>
-            <h1>Porque Ele Vive - 545</h1>
-            <a class="title-secondary"><h2>Harpa Cristã</h2></a>
-            <div class="lyric-original">
-              <p>Deus enviou Seu Filho amado<br/>Pra me salvar e perdoar</p>
-              <p>Porque Ele vive, posso crer no amanhã</p>
-            </div>
-          </body>
-        </html>
-      `
-    });
+  it('retorna array de músicas quando q/page são válidos', async () => {
+    searchLyricsMock.mockResolvedValueOnce([
+      {
+        title: 'Superman',
+        description: 'Música do Eminem no Letras.',
+        url: 'https://www.letras.mus.br/eminem/superman/'
+      }
+    ]);
 
     const response = await request(app)
       .get('/api/lyrics')
-      .query({ url: 'https://www.letras.mus.br/harpa-crista/853769/' });
+      .query({ q: 'eminem', page: 2 });
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
-    expect(response.body.message).toBe('Letra extraída com sucesso.');
-    expect(response.body.data.title).toBe('Porque Ele Vive - 545');
-    expect(response.body.data.artist).toBe('Harpa Cristã');
-    expect(response.body.data.stanzas).toHaveLength(2);
-    expect(response.body.data.lyrics).toContain('Deus enviou Seu Filho amado');
+    expect(response.body.message).toBe('Busca realizada com sucesso.');
+    expect(response.body.data).toHaveLength(1);
+    expect(response.body.data[0].title).toBe('Superman');
+    expect(response.body.data[0].url).toBe('https://www.letras.mus.br/eminem/superman/');
+    expect(response.body.metadata.page).toBe(2);
+    expect(response.body.metadata.hasMore).toBe(true);
     expect(response.body.metadata.path).toBe('/api/lyrics');
   });
 
-  it('retorna 400 para URL inválida', async () => {
-    const response = await request(app)
-      .get('/api/lyrics')
-      .query({ url: 'https://google.com/song/123' });
+  it('retorna 400 para query vazia', async () => {
+    const response = await request(app).get('/api/lyrics').query({ q: '' });
 
     expect(response.status).toBe(400);
     expect(response.body.success).toBe(false);
     expect(response.body.error.code).toBe('APP_ERROR');
-    expect(response.body.error.message).toContain('domínio letras.mus.br');
+    expect(response.body.error.message).toContain('Parâmetro "q" é obrigatório');
   });
 
-  it('retorna 404 quando não encontra bloco de letra', async () => {
-    mockedAxios.get.mockResolvedValueOnce({
-      data: '<html><body><h1>Sem letra</h1></body></html>'
-    });
+  it('retorna 400 para page fora da faixa', async () => {
+    const response = await request(app).get('/api/lyrics').query({ q: 'eminem', page: 11 });
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+    expect(response.body.error.code).toBe('APP_ERROR');
+    expect(response.body.error.message).toContain('entre 1 e 10');
+  });
+
+  it('executa fallback quando primeira tentativa não encontra resultados', async () => {
+    searchLyricsMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          title: 'Not Afraid',
+          description: 'Resultado no fallback',
+          url: 'https://www.letras.mus.br/eminem/not-afraid/'
+        }
+      ]);
 
     const response = await request(app)
       .get('/api/lyrics')
-      .query({ url: 'https://www.letras.mus.br/harpa-crista/853769/' });
+      .query({ q: 'eminem', page: 4 });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data).toHaveLength(1);
+    expect(searchLyricsMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('retorna 404 quando busca não encontra músicas', async () => {
+    searchLyricsMock.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+
+    const response = await request(app)
+      .get('/api/lyrics')
+      .query({ q: 'consulta-inexistente', page: 1 });
 
     expect(response.status).toBe(404);
     expect(response.body.success).toBe(false);
     expect(response.body.error.code).toBe('APP_ERROR');
-    expect(response.body.error.message).toContain('Letra não encontrada');
+    expect(response.body.error.message).toContain('Nenhuma música encontrada');
+  });
+
+  it('retorna 502 em falha técnica de scraping', async () => {
+    searchLyricsMock.mockRejectedValueOnce(new Error('navigation timeout'));
+
+    const response = await request(app).get('/api/lyrics').query({ q: 'eminem', page: 1 });
+
+    expect(response.status).toBe(502);
+    expect(response.body.success).toBe(false);
+    expect(response.body.error.code).toBe('APP_ERROR');
+    expect(response.body.error.message).toContain('Falha ao consultar resultados');
   });
 });
 

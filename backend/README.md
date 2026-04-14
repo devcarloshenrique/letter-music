@@ -1,6 +1,6 @@
 # API de Scraping de Letras (Node.js + TypeScript + Express)
 
-API que recebe uma URL do `letras.mus.br`, faz scraping da página e retorna a letra da música em JSON.
+API para busca de músicas no `letras.mus.br` e extração de letras sincronizadas.
 
 ## Arquitetura
 
@@ -13,14 +13,14 @@ O projeto foi refatorado para **Vertical Slice + Use Case**, seguindo os princí
   - `get-lyrics.swagger.ts` (documentação da feature)
   - `get-lyrics.spec.ts` (teste unitário do use case)
 - `src/shared/providers/scraping/`
-  - `iser-scraping.provider.ts` (abstração)
-  - `cheerio-scraping.provider.ts` (implementação)
+  - `iser-scraping.provider.ts` (abstrações)
+  - `playwright-scraping.provider.ts` (implementação da busca textual)
 - `src/shared/infra/swagger/openapi.ts` (agregador OpenAPI)
 - `src/shared/errors/app-error.ts` (erro de domínio com status HTTP)
 
 ## Endpoint
 
-`GET /api/lyrics?url=<url-da-musica>`
+`GET /api/lyrics?q=<termo-da-busca>&page=<1-10>`
 
 `GET /api/lyrics/synced?url=<url-corrigir-legenda>`
 
@@ -29,6 +29,29 @@ O projeto foi refatorado para **Vertical Slice + Use Case**, seguindo os princí
 `POST /api/auth/login`
 
 > Esse endpoint usa `LETRAS_EMAIL` e `LETRAS_PASSWORD` do ambiente para autenticação programática e persistência de sessão (cookies).
+
+### Exemplo de resposta da busca textual
+
+```json
+{
+  "success": true,
+  "message": "Busca realizada com sucesso.",
+  "data": [
+    {
+      "title": "Superman",
+      "description": "Música de Eminem com letra no Letras.",
+      "url": "https://www.letras.mus.br/eminem/superman/"
+    }
+  ],
+  "metadata": {
+    "page": 2,
+    "hasMore": true,
+    "total": null,
+    "timestamp": "2026-04-14T10:00:00.000Z",
+    "path": "/api/lyrics"
+  }
+}
+```
 
 ### Exemplo de resposta de letras sincronizadas
 
@@ -48,24 +71,9 @@ Após iniciar a aplicação, acesse no navegador:
 
 - `http://localhost:3000/docs`
 
-### Exemplo de URL suportada
+### Exemplo de busca suportada
 
-`https://www.letras.mus.br/harpa-crista/853769/`
-
-### Resposta de sucesso (exemplo)
-
-```json
-{
-  "sourceUrl": "https://www.letras.mus.br/harpa-crista/853769/",
-  "title": "Porque Ele Vive - 545",
-  "artist": "Harpa Cristã",
-  "lyrics": "Deus enviou Seu Filho amado\nPra me salvar e perdoar...",
-  "stanzas": [
-    "Deus enviou Seu Filho amado\nPra me salvar e perdoar...",
-    "Porque Ele vive, posso crer no amanhã..."
-  ]
-}
-```
+`/api/lyrics?q=eminem&page=2`
 
 ## Como rodar
 
@@ -75,13 +83,19 @@ Após iniciar a aplicação, acesse no navegador:
 npm install
 ```
 
-2. Rodar em desenvolvimento:
+2. Instale os browsers usados pelo Playwright:
+
+```bash
+npx playwright install
+```
+
+3. Rodar em desenvolvimento:
 
 ```bash
 npm run dev
 ```
 
-3. Build e execução em produção:
+4. Build e execução em produção:
 
 ```bash
 npm run build
@@ -96,7 +110,7 @@ npm test
 
 ## Observações
 
-- O endpoint valida se a URL pertence ao domínio `letras.mus.br`.
-- A extração da letra usa o bloco HTML `.lyric-original p`.
+- O endpoint `/api/lyrics` valida `q` obrigatório e `page` entre 1 e 10.
+- A busca textual usa a API interna do `letras.mus.br` (Solr) como estratégia primária, com fallback via Playwright.
 - Em caso de falha de scraping, a API retorna erro com status apropriado.
 - A documentação da API é gerada no padrão OpenAPI 3.0.3 e exibida via Swagger UI.

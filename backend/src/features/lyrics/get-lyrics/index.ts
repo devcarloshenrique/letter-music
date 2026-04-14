@@ -1,8 +1,8 @@
-import { CheerioScrapingProvider } from '../../../shared/providers/scraping/cheerio-scraping.provider';
+import { PlaywrightScrapingProvider } from '../../../shared/providers/scraping/playwright-scraping.provider';
 import { GetLyricsController } from './get-lyrics.controller';
 import { GetLyricsUseCase } from './get-lyrics.usecase';
 
-const scrapingProvider = new CheerioScrapingProvider();
-const getLyricsUseCase = new GetLyricsUseCase(scrapingProvider);
+const searchProvider = new PlaywrightScrapingProvider();
+const getLyricsUseCase = new GetLyricsUseCase(searchProvider);
 
 export const getLyricsController = new GetLyricsController(getLyricsUseCase);

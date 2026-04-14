@@ -1,19 +1,7 @@
-import { GetLyricsUseCase } from '../features/lyrics/get-lyrics/get-lyrics.usecase';
-import { CheerioScrapingProvider } from '../shared/providers/scraping/cheerio-scraping.provider';
-
-type LyricsResult = {
-  sourceUrl: string;
-  title: string;
-  artist: string;
-  lyrics: string;
-  stanzas: string[];
-};
-
 /**
- * @deprecated Mantido apenas para compatibilidade legada.
- * Use `GetLyricsUseCase` em `src/features/lyrics/get-lyrics/get-lyrics.usecase.ts`.
+ * @deprecated Este arquivo é mantido apenas para compatibilidade com código legado.
+ * Use `GetLyricsUseCase` diretamente em   `src/features/lyrics/get-lyrics/get-lyrics.usecase.ts`.
  */
-export async function scrapeLyricsFromUrl(url: URL): Promise<LyricsResult> {
-  const useCase = new GetLyricsUseCase(new CheerioScrapingProvider());
-  return useCase.execute({ url: url.toString() });
+export async function scrapeLyricsFromUrl(_url: URL): Promise<never> {
+  throw new Error('letrasScraper.scrapeLyricsFromUrl is deprecated. Use GetLyricsUseCase instead.');
 }
