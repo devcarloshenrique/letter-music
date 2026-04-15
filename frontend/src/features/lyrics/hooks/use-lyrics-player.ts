@@ -12,6 +12,7 @@ type PlayerLike = {
   setVolume: (volume: number) => void;
   getVolume: () => number;
   getCurrentTime: () => number;
+  getDuration: () => number;
   getPlayerState: () => number;
 };
 
@@ -19,6 +20,7 @@ export function useLyricsPlayer(lines: SyncedLine[]) {
   const playerRef = useRef<PlayerLike | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const [playbackRate, setPlaybackRate] = useState<number>(1);
   const [volume, setVolumeState] = useState<number>(80);
   const [loopIndices, setLoopIndices] = useState<number[]>([]);
@@ -157,9 +159,21 @@ export function useLyricsPlayer(lines: SyncedLine[]) {
       playerRef.current = event.target as PlayerLike;
       playerRef.current.setPlaybackRate(playbackRate);
       playerRef.current.setVolume(volume);
+      setDuration(playerRef.current.getDuration() || 0);
+
+      // Restore playback context when switching between mounted player surfaces
+      // (list panel player <-> karaoke hidden player).
+      if (currentTime > 0.1) {
+        playerRef.current.seekTo(currentTime, true);
+      }
+
+      if (isPlaying) {
+        playerRef.current.playVideo();
+      }
+
       setIsPlayerReady(true);
     },
-    [playbackRate, volume]
+    [currentTime, isPlaying, playbackRate, volume]
   );
 
   const handlePlayerStateChange = useCallback((event: { data: number }) => {
@@ -185,6 +199,7 @@ export function useLyricsPlayer(lines: SyncedLine[]) {
       }
 
       const liveTime = player.getCurrentTime();
+      const liveDuration = player.getDuration();
 
       // Update at 50ms intervals for high precision sync
       // We use a small threshold to avoid excessive state updates if the change is negligible
@@ -193,6 +208,14 @@ export function useLyricsPlayer(lines: SyncedLine[]) {
           return liveTime;
         }
         return prevTime;
+      });
+
+      setDuration((prevDuration) => {
+        if (Math.abs(prevDuration - liveDuration) > 0.05) {
+          return liveDuration;
+        }
+
+        return prevDuration;
       });
 
       if (loopIndices.length > 0) {
@@ -266,6 +289,7 @@ export function useLyricsPlayer(lines: SyncedLine[]) {
   return {
     activeLineIndex,
     currentTime,
+    duration,
     isPlaying,
     playbackRate,
     volume,
@@ -275,6 +299,7 @@ export function useLyricsPlayer(lines: SyncedLine[]) {
     setLoopRange,
     setSpeed,
     setVolume,
+    seekTo,
     seekToLine,
     toggleLoopLine,
     cycleSpeed,

@@ -27,7 +27,7 @@ export function LyricsControlPanel({
   onPlayerStateChange
 }: LyricsControlPanelProps) {
   return (
-    <aside className='flex w-full flex-col gap-6 bg-surface p-6 md:p-8'>
+    <aside className='flex w-full flex-col gap-6 bg-surface p-6 md:sticky md:top-0 md:max-h-[calc(100dvh-6rem)] md:overflow-y-auto md:p-8'>
       <div className='glass-surface overflow-hidden rounded-2xl'>
         <div className='aspect-video bg-surface-high'>
           {videoId ? (

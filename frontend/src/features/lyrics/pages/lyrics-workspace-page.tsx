@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { homeService } from '../../home/services/home.service';
 import type { SyncedLine } from '../../home/types/home.types';
+import { FooterPlayer } from '../components/footer-player';
 import { KaraokeView } from '../components/karaoke-view';
 import { LyricsControlPanel } from '../components/lyrics-control-panel';
 import { LyricsPanel } from '../components/lyrics-panel';
@@ -10,6 +11,12 @@ import { useLyricsPlayer } from '../hooks/use-lyrics-player';
 import { extractYouTubeVideoId } from '../utils/lyrics-time.utils';
 
 type ViewMode = 'list' | 'karaoke';
+
+const formatSlug = (value: string) =>
+  value
+    .replace(/[-_]+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 
 export default function LyricsWorkspacePage() {
   const [searchParams] = useSearchParams();
@@ -31,6 +38,8 @@ export default function LyricsWorkspacePage() {
 
   const {
     activeLineIndex,
+    currentTime,
+    duration,
     playbackRate,
     volume,
     playbackSpeeds,
@@ -39,6 +48,7 @@ export default function LyricsWorkspacePage() {
     setLoopRange,
     setSpeed,
     setVolume,
+    seekTo,
     seekToLine,
     toggleLoopLine,
     cycleSpeed,
@@ -98,6 +108,22 @@ export default function LyricsWorkspacePage() {
 
   const videoId = extractYouTubeVideoId(syncedLyricsQuery.data?.video_url);
 
+  // Extract song metadata from URL
+  const { songTitle, artistName } = useMemo(() => {
+    const normalizedUrl = queryUrl.replace(/\/$/, '');
+    const urlParts = normalizedUrl.split('/').filter(Boolean);
+    const songSlug = urlParts[urlParts.length - 1] ?? '';
+    const artistSlug = urlParts[urlParts.length - 2] ?? '';
+
+    return {
+      songTitle: formatSlug(songSlug) || 'Faixa sem título',
+      artistName: formatSlug(artistSlug) || 'Artista'
+    };
+  }, [queryUrl]);
+
+  // Get thumbnail
+  const thumbnail = useMemo(() => videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : undefined, [videoId]);
+
   const handleBack = useCallback(() => {
     if (window.history.length > 1) {
       navigate(-1);
@@ -112,73 +138,95 @@ export default function LyricsWorkspacePage() {
     navigate('/');
   }, [from, navigate]);
 
-  const handleToggleViewMode = useCallback(() => {
-    setViewMode((currentMode) => (currentMode === 'list' ? 'karaoke' : 'list'));
+  const handleExitKaraoke = useCallback(() => {
+    setViewMode('list');
+  }, []);
+
+  const handleToggleKaraokeMode = useCallback(() => {
+    setViewMode((currentMode) => (currentMode === 'karaoke' ? 'list' : 'karaoke'));
   }, []);
 
   return (
-    <div className='flex h-full w-full flex-col overflow-hidden'>
-      {viewMode === 'list' ? (
-        <main className='flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row'>
-          <div className='flex h-[50vh] min-h-0 flex-col border-b border-outline-variant/10 lg:h-full lg:flex-[65] lg:border-b-0'>
-            <LyricsPanel
-              queryUrl={queryUrl}
-              lines={lines}
-              activeLineIndex={activeLineIndex}
-              loopIndices={loopIndices}
-              loopRange={loopRange}
-              viewMode={viewMode}
-              isLoading={syncedLyricsQuery.isLoading}
-              errorMessage={syncedLyricsQuery.isError ? syncedLyricsQuery.error.message : undefined}
-              onLineClick={handleLineClick}
-              onLoopToggle={handleLoopToggle}
-              onLoopRangeChange={setLoopRange}
-              registerLineRef={registerLineRef}
-              onManualScroll={handleManualScroll}
-              onBack={handleBack}
-              onToggleViewMode={handleToggleViewMode}
-            />
-          </div>
+    <div className='relative flex h-full w-full flex-col overflow-hidden'>
+      <main
+        className={`min-h-0 flex-1 flex-col overflow-hidden pb-20 md:pb-24 lg:flex-row ${
+          viewMode === 'karaoke' ? 'hidden' : 'flex'
+        }`}
+        aria-hidden={viewMode === 'karaoke'}
+      >
+        <div className='flex h-[50vh] min-h-0 flex-col border-b border-outline-variant/10 lg:h-full lg:flex-[65] lg:border-b-0'>
+          <LyricsPanel
+            queryUrl={queryUrl}
+            lines={lines}
+            activeLineIndex={activeLineIndex}
+            loopIndices={loopIndices}
+            loopRange={loopRange}
+            isLoading={syncedLyricsQuery.isLoading}
+            errorMessage={syncedLyricsQuery.isError ? syncedLyricsQuery.error.message : undefined}
+            onLineClick={handleLineClick}
+            onLoopToggle={handleLoopToggle}
+            onLoopRangeChange={setLoopRange}
+            registerLineRef={registerLineRef}
+            onManualScroll={handleManualScroll}
+            onBack={handleBack}
+          />
+        </div>
 
-          <div className='flex min-h-0 flex-1 flex-col overflow-y-auto lg:h-full lg:flex-[35] lg:border-l lg:border-outline-variant/10'>
-            <LyricsControlPanel
-              videoId={videoId}
-              playbackRate={playbackRate}
-              volume={volume}
-              playbackSpeeds={playbackSpeeds}
-              loopActive={loopIndices.length > 0}
-              onSpeedSelect={setSpeed}
-              onVolumeChange={setVolume}
-              onToggleLoop={toggleLoop}
-              onPlayerReady={handlePlayerReady}
-              onPlayerStateChange={handlePlayerStateChange}
-            />
-          </div>
+        <div className='flex min-h-0 flex-1 flex-col lg:h-full lg:flex-[35] lg:border-l lg:border-outline-variant/10'>
+          <LyricsControlPanel
+            videoId={videoId}
+            playbackRate={playbackRate}
+            volume={volume}
+            playbackSpeeds={playbackSpeeds}
+            loopActive={loopIndices.length > 0}
+            onSpeedSelect={setSpeed}
+            onVolumeChange={setVolume}
+            onToggleLoop={toggleLoop}
+            onPlayerReady={handlePlayerReady}
+            onPlayerStateChange={handlePlayerStateChange}
+          />
+        </div>
+      </main>
+
+      {viewMode === 'karaoke' && (
+        <main className='flex min-h-0 flex-1 flex-col overflow-hidden pb-20 md:pb-24'>
+          <KaraokeView
+            queryUrl={queryUrl}
+            lines={lines}
+            activeLineIndex={activeLineIndex}
+            isLoading={syncedLyricsQuery.isLoading}
+            errorMessage={syncedLyricsQuery.isError ? syncedLyricsQuery.error.message : undefined}
+            videoId={videoId}
+            onToggleViewMode={handleExitKaraoke}
+            onPlayerReady={handlePlayerReady}
+            onPlayerStateChange={handlePlayerStateChange}
+          />
         </main>
-      ) : (
-        <KaraokeView
-          queryUrl={queryUrl}
-          lines={lines}
-          activeLineIndex={activeLineIndex}
-          loopActive={loopIndices.length > 0}
-          isPlaying={isPlaying}
-          isLoading={syncedLyricsQuery.isLoading}
-          errorMessage={syncedLyricsQuery.isError ? syncedLyricsQuery.error.message : undefined}
-          videoId={videoId}
-          playbackRate={playbackRate}
-          volume={volume}
-          onBack={handleBack}
-          onToggleViewMode={handleToggleViewMode}
-          onTogglePlayPause={togglePlayPause}
-          onPrevLine={() => jumpToAdjacentLine(-1)}
-          onNextLine={() => jumpToAdjacentLine(1)}
-          onToggleLoop={toggleLoop}
-          onCycleSpeed={cycleSpeed}
-          onVolumeChange={setVolume}
-          onPlayerReady={handlePlayerReady}
-          onPlayerStateChange={handlePlayerStateChange}
-        />
       )}
+
+      {/* Persistent Footer Player */}
+      <FooterPlayer
+        lines={lines}
+        activeLineIndex={activeLineIndex}
+        currentTime={currentTime}
+        duration={duration}
+        isPlaying={isPlaying}
+        playbackRate={playbackRate}
+        volume={volume}
+        loopActive={loopIndices.length > 0}
+        isKaraokeMode={viewMode === 'karaoke'}
+        songTitle={songTitle}
+        artistName={artistName}
+        thumbnail={thumbnail}
+        onTogglePlayPause={togglePlayPause}
+        onPrevLine={() => jumpToAdjacentLine(-1)}
+        onNextLine={() => jumpToAdjacentLine(1)}
+        onCycleSpeed={cycleSpeed}
+        onToggleLoop={toggleLoop}
+        onVolumeChange={setVolume}
+        onSeek={seekTo}
+        onToggleKaraokeMode={handleToggleKaraokeMode}
+      />
     </div>
   );
 }
