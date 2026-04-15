@@ -144,11 +144,6 @@ export default function LyricsWorkspacePage() {
   }, [artistName, queryUrl, setNowPlaying, songTitle, thumbnail, videoId]);
 
   const handleBack = useCallback(() => {
-    if (window.history.length > 1) {
-      navigate(-1);
-      return;
-    }
-
     if (typeof from === 'string' && from.length > 0) {
       navigate(from);
       return;

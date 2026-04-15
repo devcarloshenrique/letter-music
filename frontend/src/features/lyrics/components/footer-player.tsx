@@ -1,4 +1,4 @@
-import { Mic2, Pause, Play, Repeat, SkipBack, SkipForward, Volume2, X } from 'lucide-react';
+import { CircleX, Mic2, Pause, Play, Repeat, SkipBack, SkipForward, Volume2 } from 'lucide-react';
 import { type MouseEvent, useMemo } from 'react';
 import type { SyncedLine } from '../../home/types/home.types';
 
@@ -207,10 +207,12 @@ export function FooterPlayer({
                   type='button'
                   onClick={onStop}
                   data-player-control='true'
-                  className='interactive-scale premium-transition inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-surface-high text-on-surface-variant hover:text-error'
+                  className='interactive-scale premium-transition inline-flex h-9 items-center gap-2 rounded-full border border-outline-variant/40 bg-surface-high/80 px-3 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant shadow-[0_0_0_1px_rgba(255,255,255,0.02)] hover:border-error/40 hover:bg-error/10 hover:text-error'
                   aria-label='Fechar player e parar música'
+                  title='Fechar player e parar música'
                 >
-                  <X size={14} />
+                  <CircleX size={15} />
+                  <span className='hidden md:inline'>Parar</span>
                 </button>
               )}
 

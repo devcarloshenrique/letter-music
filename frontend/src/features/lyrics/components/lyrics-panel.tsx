@@ -40,6 +40,8 @@ export function LyricsPanel({
   isSidePanelOpen = false,
   onBack
 }: LyricsPanelProps) {
+  const activeLine = activeLineIndex >= 0 ? lines[activeLineIndex] : null;
+
   return (
     <section className='relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-black/20 lg:w-auto'>
       <header className='sticky top-0 z-20 flex items-center justify-between border-b border-outline-variant/20 bg-background/85 px-6 py-5 backdrop-blur-xl md:px-10'>
@@ -47,14 +49,20 @@ export function LyricsPanel({
           <button
             type='button'
             onClick={onBack}
-            className='interactive-scale premium-transition inline-flex h-9 w-9 items-center justify-center rounded-full bg-surface-high text-on-surface-variant hover:text-secondary'
-            aria-label='Voltar para busca'
+            className='interactive-scale premium-transition inline-flex h-10 w-10 items-center justify-center rounded-full border border-outline-variant/30 bg-surface-high/80 text-on-surface-variant shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur-md hover:border-secondary/35 hover:text-secondary'
+            aria-label='Voltar para a home'
+            title='Voltar para a home'
           >
-            <ChevronLeft size={18} />
+            <ChevronLeft size={19} />
           </button>
           <div>
             <p className='text-label text-secondary'>Synchronized Lyrics</p>
             <p className='max-w-[55vw] truncate text-xs text-on-surface-variant md:text-sm'>{queryUrl || 'Sem URL informada'}</p>
+            {activeLine && (
+              <p className='mt-1 max-w-[55vw] truncate text-[11px] font-medium text-on-surface-variant/70 md:text-xs'>
+                {activeLine.text}
+              </p>
+            )}
           </div>
         </div>
         <div className='h-9 w-9' aria-hidden='true' />
