@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { PanelRightOpen } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { homeService } from '../../home/services/home.service';
@@ -22,6 +23,7 @@ export default function LyricsWorkspacePage() {
   const [searchParams] = useSearchParams();
   const queryUrl = searchParams.get('url')?.trim() ?? '';
   const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [isSidePanelOpen, setIsSidePanelOpen] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
   const from = (location.state as { from?: string } | null)?.from;
@@ -154,7 +156,11 @@ export default function LyricsWorkspacePage() {
         }`}
         aria-hidden={viewMode === 'karaoke'}
       >
-        <div className='flex h-[50vh] min-h-0 flex-col border-b border-outline-variant/10 lg:h-full lg:flex-[65] lg:border-b-0'>
+        <div
+          className={`flex h-[50vh] min-h-0 flex-col border-b border-outline-variant/10 lg:h-full lg:flex-1 lg:border-b-0 ${
+            isSidePanelOpen ? 'lg:pr-[26rem]' : ''
+          }`}
+        >
           <LyricsPanel
             queryUrl={queryUrl}
             lines={lines}
@@ -172,7 +178,23 @@ export default function LyricsWorkspacePage() {
           />
         </div>
 
-        <div className='flex min-h-0 flex-1 flex-col lg:h-full lg:flex-[35] lg:border-l lg:border-outline-variant/10'>
+        {!isSidePanelOpen && (
+          <button
+            type='button'
+            onClick={() => setIsSidePanelOpen(true)}
+            className='interactive-scale premium-transition fixed right-4 top-4 z-40 hidden items-center gap-2 rounded-full border border-outline-variant/40 bg-surface-high/90 px-3 py-2 text-xs font-bold uppercase tracking-wide text-on-surface-variant backdrop-blur-md hover:text-secondary lg:inline-flex'
+            aria-label='Abrir menu lateral'
+          >
+            <PanelRightOpen size={14} /> Menu
+          </button>
+        )}
+
+        <div
+          className={`fixed bottom-20 right-0 top-0 z-30 hidden w-[26rem] border-l border-outline-variant/10 bg-surface transition-transform duration-300 lg:flex md:bottom-24 ${
+            isSidePanelOpen ? 'translate-x-0' : 'translate-x-full'
+          } ${isSidePanelOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
+          aria-hidden={!isSidePanelOpen}
+        >
           <LyricsControlPanel
             videoId={videoId}
             playbackRate={playbackRate}
@@ -184,6 +206,24 @@ export default function LyricsWorkspacePage() {
             onToggleLoop={toggleLoop}
             onPlayerReady={handlePlayerReady}
             onPlayerStateChange={handlePlayerStateChange}
+            onClose={() => setIsSidePanelOpen(false)}
+            onMute={() => setVolume(0)}
+          />
+        </div>
+
+        <div className='flex min-h-0 flex-1 flex-col lg:hidden'>
+          <LyricsControlPanel
+            videoId={videoId}
+            playbackRate={playbackRate}
+            volume={volume}
+            playbackSpeeds={playbackSpeeds}
+            loopActive={loopIndices.length > 0}
+            onSpeedSelect={setSpeed}
+            onVolumeChange={setVolume}
+            onToggleLoop={toggleLoop}
+            onPlayerReady={handlePlayerReady}
+            onPlayerStateChange={handlePlayerStateChange}
+            onMute={() => setVolume(0)}
           />
         </div>
       </main>

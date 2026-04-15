@@ -1,4 +1,4 @@
-import { Keyboard, Repeat, Volume2 } from 'lucide-react';
+import { Keyboard, Repeat, Volume2, X } from 'lucide-react';
 import YouTube from 'react-youtube';
 
 type LyricsControlPanelProps = {
@@ -12,6 +12,8 @@ type LyricsControlPanelProps = {
   onToggleLoop: () => void;
   onPlayerReady: (event: { target: unknown }) => void;
   onPlayerStateChange: (event: { data: number }) => void;
+  onClose?: () => void;
+  onMute?: () => void;
 };
 
 export function LyricsControlPanel({
@@ -24,10 +26,26 @@ export function LyricsControlPanel({
   onVolumeChange,
   onToggleLoop,
   onPlayerReady,
-  onPlayerStateChange
+  onPlayerStateChange,
+  onClose,
+  onMute
 }: LyricsControlPanelProps) {
   return (
-    <aside className='flex w-full flex-col gap-6 bg-surface p-6 md:sticky md:top-0 md:max-h-[calc(100dvh-6rem)] md:overflow-y-auto md:p-8'>
+    <aside className='flex h-full w-full flex-col gap-6 bg-surface p-6 md:overflow-y-auto md:p-8'>
+      <div className='flex items-center justify-between'>
+        <p className='text-label text-on-surface-variant'>Painel de Controle</p>
+        {onClose && (
+          <button
+            type='button'
+            onClick={onClose}
+            className='interactive-scale premium-transition inline-flex h-9 w-9 items-center justify-center rounded-full bg-surface-high text-on-surface-variant hover:text-secondary'
+            aria-label='Fechar menu lateral'
+          >
+            <X size={16} />
+          </button>
+        )}
+      </div>
+
       <div className='glass-surface overflow-hidden rounded-2xl'>
         <div className='aspect-video bg-surface-high'>
           {videoId ? (
@@ -80,7 +98,14 @@ export function LyricsControlPanel({
           <span className='text-xs font-bold text-secondary'>{volume}%</span>
         </div>
         <div className='flex items-center gap-3'>
-          <Volume2 size={16} className='text-on-surface-variant' />
+          <button
+            type='button'
+            onClick={onMute}
+            className='interactive-scale premium-transition inline-flex h-7 w-7 items-center justify-center rounded-full text-on-surface-variant hover:text-secondary'
+            aria-label='Mutar volume'
+          >
+            <Volume2 size={16} />
+          </button>
           <input
             type='range'
             min={0}

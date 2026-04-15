@@ -155,7 +155,14 @@ export function FooterPlayer({
             <div className='flex items-center gap-2 md:gap-3 flex-shrink-0 justify-end w-48'>
               {/* Volume Control (hidden on mobile) */}
               <div className='hidden md:flex items-center gap-2 rounded-lg border border-white/10 bg-surface-high/50 px-3 py-1.5'>
-                <Volume2 size={14} className='text-on-surface-variant flex-shrink-0' />
+                <button
+                  type='button'
+                  onClick={() => onVolumeChange(0)}
+                  className='interactive-scale premium-transition inline-flex h-6 w-6 items-center justify-center rounded-full text-on-surface-variant hover:text-secondary'
+                  aria-label='Mutar volume'
+                >
+                  <Volume2 size={14} className='flex-shrink-0' />
+                </button>
                 <input
                   type='range'
                   min={0}
