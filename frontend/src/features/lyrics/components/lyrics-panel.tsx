@@ -40,28 +40,24 @@ export function LyricsPanel({
   isSidePanelOpen = false,
   onBack
 }: LyricsPanelProps) {
-  const activeLine = activeLineIndex >= 0 ? lines[activeLineIndex] : null;
-
   return (
     <section className='relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-black/20 lg:w-auto'>
-      <header className='sticky top-0 z-20 flex items-center justify-between border-b border-outline-variant/20 bg-background/85 px-6 py-5 backdrop-blur-xl md:px-10'>
+      <header className='sticky top-0 z-20 flex items-center justify-between border-b border-outline-variant/20 bg-background/85 px-6 py-5 pl-20 backdrop-blur-xl md:px-10 md:pl-24'>
         <div className='flex items-center gap-3'>
-          <button
-            type='button'
-            onClick={onBack}
-            className='interactive-scale premium-transition inline-flex h-10 w-10 items-center justify-center rounded-full border border-outline-variant/30 bg-surface-high/80 text-on-surface-variant shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur-md hover:border-secondary/35 hover:text-secondary'
-            aria-label='Voltar para a home'
-            title='Voltar para a home'
-          >
-            <ChevronLeft size={19} />
-          </button>
           <div>
             <p className='text-label text-secondary'>Synchronized Lyrics</p>
-            <p className='max-w-[55vw] truncate text-xs text-on-surface-variant md:text-sm'>{queryUrl || 'Sem URL informada'}</p>
-            {activeLine && (
-              <p className='mt-1 max-w-[55vw] truncate text-[11px] font-medium text-on-surface-variant/70 md:text-xs'>
-                {activeLine.text}
-              </p>
+            {queryUrl ? (
+              <a
+                href={queryUrl}
+                target='_blank'
+                rel='noreferrer'
+                className='max-w-[55vw] truncate text-xs text-on-surface-variant transition-colors hover:text-secondary hover:underline md:text-sm'
+                title='Abrir música em uma nova aba'
+              >
+                {queryUrl}
+              </a>
+            ) : (
+              <p className='max-w-[55vw] truncate text-xs text-on-surface-variant md:text-sm'>Sem URL informada</p>
             )}
           </div>
         </div>
@@ -180,6 +176,18 @@ export function LyricsPanel({
             <LocateFixed size={16} />
           </button>
         )}
+
+        <button
+          type='button'
+          onClick={onBack}
+          className={`interactive-scale premium-transition fixed left-6 top-6 z-40 inline-flex h-11 w-11 items-center justify-center rounded-full border border-outline-variant/30 bg-surface-high/90 text-on-surface-variant shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur-md hover:border-secondary/35 hover:text-secondary ${
+            isSidePanelOpen ? 'md:left-10' : ''
+          }`}
+          aria-label='Voltar para a home'
+          title='Voltar para a home'
+        >
+          <ChevronLeft size={18} />
+        </button>
       </div>
     </section>
   );

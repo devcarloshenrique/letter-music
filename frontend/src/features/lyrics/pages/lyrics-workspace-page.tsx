@@ -144,13 +144,25 @@ export default function LyricsWorkspacePage() {
   }, [artistName, queryUrl, setNowPlaying, songTitle, thumbnail, videoId]);
 
   const handleBack = useCallback(() => {
+    const currentRoute = `${location.pathname}${location.search}`;
+
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+
     if (typeof from === 'string' && from.length > 0) {
+      if (from === currentRoute) {
+        navigate('/');
+        return;
+      }
+
       navigate(from);
       return;
     }
 
     navigate('/');
-  }, [from, navigate]);
+  }, [from, location.pathname, location.search, navigate]);
 
   const handleExitKaraoke = useCallback(() => {
     setViewMode('list');
