@@ -10,8 +10,6 @@ type KaraokeViewProps = {
   errorMessage?: string;
   videoId: string | null;
   onToggleViewMode: () => void;
-  onPlayerReady: (event: { target: unknown }) => void;
-  onPlayerStateChange: (event: { data: number }) => void;
 };
 
 export function KaraokeView({
@@ -21,9 +19,7 @@ export function KaraokeView({
   isLoading,
   errorMessage,
   videoId,
-  onToggleViewMode,
-  onPlayerReady: _onPlayerReady,
-  onPlayerStateChange: _onPlayerStateChange
+  onToggleViewMode
 }: KaraokeViewProps) {
   const normalizedUrl = queryUrl.replace(/\/$/, '');
   const urlParts = normalizedUrl.split('/').filter(Boolean);

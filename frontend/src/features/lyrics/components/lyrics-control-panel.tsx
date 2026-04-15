@@ -1,5 +1,4 @@
 import { Keyboard, Repeat, Volume2, X } from 'lucide-react';
-import YouTube from 'react-youtube';
 
 type LyricsControlPanelProps = {
   videoId: string | null;
@@ -10,8 +9,6 @@ type LyricsControlPanelProps = {
   onSpeedSelect: (rate: number) => void;
   onVolumeChange: (value: number) => void;
   onToggleLoop: () => void;
-  onPlayerReady: (event: { target: unknown }) => void;
-  onPlayerStateChange: (event: { data: number }) => void;
   onClose?: () => void;
   onMute?: () => void;
 };
@@ -25,8 +22,6 @@ export function LyricsControlPanel({
   onSpeedSelect,
   onVolumeChange,
   onToggleLoop,
-  onPlayerReady,
-  onPlayerStateChange,
   onClose,
   onMute
 }: LyricsControlPanelProps) {
@@ -49,19 +44,10 @@ export function LyricsControlPanel({
       <div className='glass-surface overflow-hidden rounded-2xl'>
         <div className='aspect-video bg-surface-high'>
           {videoId ? (
-            <YouTube
-              videoId={videoId}
-              opts={{
-                width: '100%',
-                height: '100%',
-                playerVars: {
-                  rel: 0,
-                  modestbranding: 1
-                }
-              }}
-              className='h-full w-full [&>iframe]:h-full [&>iframe]:w-full'
-              onReady={onPlayerReady}
-              onStateChange={onPlayerStateChange}
+            <img
+              src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
+              alt='Capa do video atual'
+              className='h-full w-full object-cover'
             />
           ) : (
             <div className='flex h-full items-center justify-center text-sm text-on-surface-variant'>Sem vídeo disponível</div>

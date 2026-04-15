@@ -39,6 +39,7 @@ export default function LyricsWorkspacePage() {
   const lineRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const {
+    setNowPlaying,
     activeLineIndex,
     currentTime,
     duration,
@@ -58,8 +59,6 @@ export default function LyricsWorkspacePage() {
     jumpToAdjacentLine,
     toggleLoop,
     isPlaying,
-    handlePlayerReady,
-    handlePlayerStateChange
   } = useLyricsPlayer(lines);
 
   const handleLineClick = useCallback(
@@ -129,6 +128,20 @@ export default function LyricsWorkspacePage() {
 
   // Get thumbnail
   const thumbnail = useMemo(() => videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : undefined, [videoId]);
+
+  useEffect(() => {
+    if (!queryUrl || !videoId) {
+      return;
+    }
+
+    setNowPlaying({
+      queryUrl,
+      videoId,
+      songTitle,
+      artistName,
+      thumbnail
+    });
+  }, [artistName, queryUrl, setNowPlaying, songTitle, thumbnail, videoId]);
 
   const handleBack = useCallback(() => {
     if (window.history.length > 1) {
@@ -211,8 +224,6 @@ export default function LyricsWorkspacePage() {
             onSpeedSelect={setSpeed}
             onVolumeChange={setVolume}
             onToggleLoop={toggleLoop}
-            onPlayerReady={handlePlayerReady}
-            onPlayerStateChange={handlePlayerStateChange}
             onClose={() => setIsSidePanelOpen(false)}
             onMute={() => setVolume(0)}
           />
@@ -228,8 +239,6 @@ export default function LyricsWorkspacePage() {
             onSpeedSelect={setSpeed}
             onVolumeChange={setVolume}
             onToggleLoop={toggleLoop}
-            onPlayerReady={handlePlayerReady}
-            onPlayerStateChange={handlePlayerStateChange}
             onMute={() => setVolume(0)}
           />
         </div>
@@ -245,8 +254,6 @@ export default function LyricsWorkspacePage() {
             errorMessage={syncedLyricsQuery.isError ? syncedLyricsQuery.error.message : undefined}
             videoId={videoId}
             onToggleViewMode={handleExitKaraoke}
-            onPlayerReady={handlePlayerReady}
-            onPlayerStateChange={handlePlayerStateChange}
           />
         </main>
       )}

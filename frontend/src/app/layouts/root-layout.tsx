@@ -1,6 +1,9 @@
 import type { PropsWithChildren } from 'react';
 import { useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { FooterPlayer } from '../../features/lyrics/components/footer-player';
+import { GlobalLyricsPlayerHost } from '../../features/lyrics/components/global-lyrics-player-host';
+import { useLyricsPlayerContext } from '../../features/lyrics/context/lyrics-player-context';
 import { BottomNav } from '../../shared/components/layout/bottom-nav';
 import { Navbar } from '../../shared/components/layout/navbar';
 import { SettingsAuthModal } from '../../shared/components/layout/settings-auth-modal';
@@ -11,9 +14,29 @@ export function RootLayout({ children }: PropsWithChildren) {
   const closeTimeoutRef = useRef<number | null>(null);
   const shouldLockViewport = isSettingsOpen || isClosingTransition;
   const location = useLocation();
+  const navigate = useNavigate();
+  const {
+    nowPlaying,
+    lines,
+    activeLineIndex,
+    currentTime,
+    duration,
+    isPlaying,
+    playbackRate,
+    volume,
+    loopIndices,
+    togglePlayPause,
+    jumpToAdjacentLine,
+    cycleSpeed,
+    toggleLoop,
+    setVolume,
+    seekTo,
+    clearNowPlaying
+  } = useLyricsPlayerContext();
 
   // Hide Top bar and Bottom nav in the workspace
   const isWorkspace = location.pathname.startsWith('/lyrics');
+  const shouldShowGlobalFooterPlayer = !isWorkspace && Boolean(nowPlaying?.videoId);
 
   useEffect(() => {
     return () => {
@@ -70,6 +93,7 @@ export function RootLayout({ children }: PropsWithChildren) {
 
   return (
     <div className="relative min-h-screen w-full overflow-x-hidden bg-background text-on-surface">
+      <GlobalLyricsPlayerHost />
       {!isWorkspace && <Navbar onOpenSettings={handleOpenSettings} />}
       <div
         className={`relative z-0 transition-all duration-700 ${
@@ -86,6 +110,45 @@ export function RootLayout({ children }: PropsWithChildren) {
       </div>
       {!isWorkspace && <BottomNav />}
       <SettingsAuthModal isOpen={isSettingsOpen} onClose={handleCloseSettings} />
+      {shouldShowGlobalFooterPlayer && nowPlaying && (
+        <FooterPlayer
+          lines={lines}
+          activeLineIndex={activeLineIndex}
+          currentTime={currentTime}
+          duration={duration}
+          isPlaying={isPlaying}
+          playbackRate={playbackRate}
+          volume={volume}
+          loopActive={loopIndices.length > 0}
+          isKaraokeMode={false}
+          songTitle={nowPlaying.songTitle}
+          artistName={nowPlaying.artistName}
+          thumbnail={nowPlaying.thumbnail}
+          onTogglePlayPause={togglePlayPause}
+          onPrevLine={() => jumpToAdjacentLine(-1)}
+          onNextLine={() => jumpToAdjacentLine(1)}
+          onCycleSpeed={cycleSpeed}
+          onToggleLoop={toggleLoop}
+          onVolumeChange={setVolume}
+          onSeek={seekTo}
+          onToggleKaraokeMode={() => {
+            navigate(`/lyrics?url=${encodeURIComponent(nowPlaying.queryUrl)}`, {
+              state: {
+                from: `${location.pathname}${location.search}`
+              }
+            });
+          }}
+          onOpenLyrics={() => {
+            navigate(`/lyrics?url=${encodeURIComponent(nowPlaying.queryUrl)}`, {
+              state: {
+                from: `${location.pathname}${location.search}`
+              }
+            });
+          }}
+          onStop={clearNowPlaying}
+          showKaraokeToggle={false}
+        />
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { Mic2, Pause, Play, Repeat, SkipBack, SkipForward, Volume2 } from 'lucide-react';
+import { Mic2, Pause, Play, Repeat, SkipBack, SkipForward, Volume2, X } from 'lucide-react';
 import { type MouseEvent, useMemo } from 'react';
 import type { SyncedLine } from '../../home/types/home.types';
 
@@ -20,6 +20,9 @@ type FooterPlayerProps = {
   onVolumeChange: (value: number) => void;
   onSeek: (seconds: number) => void;
   onToggleKaraokeMode: () => void;
+  onOpenLyrics?: () => void;
+  onStop?: () => void;
+  showKaraokeToggle?: boolean;
   songTitle?: string;
   artistName?: string;
   thumbnail?: string;
@@ -43,6 +46,9 @@ export function FooterPlayer({
   onVolumeChange,
   onSeek,
   onToggleKaraokeMode,
+  onOpenLyrics,
+  onStop,
+  showKaraokeToggle = true,
   songTitle = 'Sem Título',
   artistName = 'Artista',
   thumbnail
@@ -77,10 +83,26 @@ export function FooterPlayer({
     onSeek(fraction * duration);
   };
 
+  const handleContainerClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (!onOpenLyrics) {
+      return;
+    }
+
+    const target = event.target as HTMLElement;
+    if (target.closest('[data-player-control="true"]')) {
+      return;
+    }
+
+    onOpenLyrics();
+  };
+
   return (
     <>
       {/* Fixed Footer Player */}
-      <div className='fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-surface/60 backdrop-blur-3xl md:h-24 h-20'>
+      <div
+        className={`fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-surface/60 backdrop-blur-3xl md:h-24 h-20 ${onOpenLyrics ? 'cursor-pointer' : ''}`}
+        onClick={handleContainerClick}
+      >
         <div className='mx-auto h-full max-w-7xl px-4 md:px-8 flex flex-col justify-center'>
           {/* Progress Bar */}
           <div className='mb-3 flex items-center gap-3'>
@@ -88,6 +110,7 @@ export function FooterPlayer({
             <div
               className='group h-1.5 w-full cursor-pointer overflow-hidden rounded-full bg-surface-variant/40'
               onClick={handleTimelineClick}
+              data-player-control='true'
               role='slider'
               aria-label='Timeline de reprodução'
               aria-valuemin={0}
@@ -124,6 +147,7 @@ export function FooterPlayer({
               <button
                 type='button'
                 onClick={onPrevLine}
+                data-player-control='true'
                 className='interactive-scale premium-transition text-on-surface-variant hover:text-primary'
                 aria-label='Linha anterior'
               >
@@ -134,6 +158,7 @@ export function FooterPlayer({
               <button
                 type='button'
                 onClick={onTogglePlayPause}
+                data-player-control='true'
                 className='interactive-scale premium-transition inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary text-on-primary shadow-[0_0_20px_rgba(191,64,255,0.6)] hover:scale-110'
                 aria-label={isPlaying ? 'Pausar' : 'Reproduzir'}
               >
@@ -144,6 +169,7 @@ export function FooterPlayer({
               <button
                 type='button'
                 onClick={onNextLine}
+                data-player-control='true'
                 className='interactive-scale premium-transition text-on-surface-variant hover:text-primary'
                 aria-label='Próxima linha'
               >
@@ -158,6 +184,7 @@ export function FooterPlayer({
                 <button
                   type='button'
                   onClick={() => onVolumeChange(0)}
+                  data-player-control='true'
                   className='interactive-scale premium-transition inline-flex h-6 w-6 items-center justify-center rounded-full text-on-surface-variant hover:text-secondary'
                   aria-label='Mutar volume'
                 >
@@ -169,15 +196,29 @@ export function FooterPlayer({
                   max={100}
                   value={volume}
                   onChange={(event) => onVolumeChange(Number(event.target.value))}
+                  data-player-control='true'
                   className='h-1 w-20 accent-secondary'
                   aria-label='Controle de volume'
                 />
               </div>
 
+              {onStop && (
+                <button
+                  type='button'
+                  onClick={onStop}
+                  data-player-control='true'
+                  className='interactive-scale premium-transition inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-surface-high text-on-surface-variant hover:text-error'
+                  aria-label='Fechar player e parar música'
+                >
+                  <X size={14} />
+                </button>
+              )}
+
               {/* Speed Badge */}
               <button
                 type='button'
                 onClick={onCycleSpeed}
+                data-player-control='true'
                 className='interactive-scale premium-transition rounded-lg border border-white/10 bg-surface-high px-2.5 py-1.5 text-xs font-bold text-on-surface-variant hover:text-secondary'
                 aria-label='Alterar velocidade'
               >
@@ -185,23 +226,27 @@ export function FooterPlayer({
               </button>
 
               {/* Karaoke Toggle */}
-              <button
-                type='button'
-                onClick={onToggleKaraokeMode}
-                className={`interactive-scale premium-transition inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold ${
-                  isKaraokeMode
-                    ? 'border-secondary/50 bg-secondary/20 text-secondary shadow-glow-secondary'
-                    : 'border-white/10 bg-surface-high text-on-surface-variant hover:text-secondary'
-                }`}
-                aria-label='Alternar modo karaoke'
-              >
-                <Mic2 size={12} /> <span className='hidden md:inline'>Karaoke</span>
-              </button>
+              {showKaraokeToggle && (
+                <button
+                  type='button'
+                  onClick={onToggleKaraokeMode}
+                  data-player-control='true'
+                  className={`interactive-scale premium-transition inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold ${
+                    isKaraokeMode
+                      ? 'border-secondary/50 bg-secondary/20 text-secondary shadow-glow-secondary'
+                      : 'border-white/10 bg-surface-high text-on-surface-variant hover:text-secondary'
+                  }`}
+                  aria-label='Alternar modo karaoke'
+                >
+                  <Mic2 size={12} /> <span className='hidden md:inline'>Karaoke</span>
+                </button>
+              )}
 
               {/* Loop Toggle */}
               <button
                 type='button'
                 onClick={onToggleLoop}
+                data-player-control='true'
                 className={`interactive-scale premium-transition inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold ${
                   loopActive
                     ? 'border-primary/40 bg-primary/15 text-primary shadow-glow-primary'
