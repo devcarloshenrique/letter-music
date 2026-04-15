@@ -23,3 +23,27 @@ export type ApiErrorResponse = {
   };
   message?: string;
 };
+
+export type SearchLyricsSong = {
+  title: string;
+  description: string;
+  url: string;
+};
+
+export type SearchLyricsMetadata = {
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  totalResults?: number | null;
+  hasMore?: boolean;
+  isEstimated?: boolean;
+  timestamp?: string;
+  path?: string;
+};
+
+export type SearchLyricsSuccessResponse = {
+  success: true;
+  message: string;
+  data: SearchLyricsSong[];
+  metadata: SearchLyricsMetadata;
+};

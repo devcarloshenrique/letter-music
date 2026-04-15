@@ -1,6 +1,11 @@
 import axios from 'axios';
 import { apiClient } from '../../../shared/lib/api-client';
-import type { ApiErrorResponse, SyncedLyricsData, SyncedLyricsSuccessResponse } from '../types/home.types';
+import type { 
+  ApiErrorResponse, 
+  SyncedLyricsData, 
+  SyncedLyricsSuccessResponse,
+  SearchLyricsSuccessResponse
+} from '../types/home.types';
 
 function parseErrorMessage(error: unknown): string {
   if (axios.isAxiosError<ApiErrorResponse>(error)) {
@@ -29,6 +34,20 @@ export const homeService = {
       });
 
       return response.data.data;
+    } catch (error) {
+      throw new Error(parseErrorMessage(error));
+    }
+  },
+
+  searchLyrics: async (query: string, page: number = 1): Promise<SearchLyricsSuccessResponse> => {
+    try {
+      const response = await apiClient.get<SearchLyricsSuccessResponse>('/api/lyrics', {
+        params: {
+          q: query,
+          page
+        }
+      });
+      return response.data;
     } catch (error) {
       throw new Error(parseErrorMessage(error));
     }

@@ -69,14 +69,18 @@ export function RootLayout({ children }: PropsWithChildren) {
   };
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-background text-on-surface">
+    <div className="relative min-h-screen w-full overflow-x-hidden bg-background text-on-surface">
       {!isWorkspace && <Navbar onOpenSettings={handleOpenSettings} />}
       <div
-        className={`fixed inset-0 z-0 transition-all duration-700 ${
+        className={`relative z-0 transition-all duration-700 ${
           shouldLockViewport ? 'scale-105 select-none blur-[40px]' : ''
         }`}
       >
-        <main className={`dot-grid h-full w-full overflow-hidden ${!isWorkspace ? 'pt-[76px]' : ''}`}>
+        <main
+          className={`dot-grid min-h-screen w-full overflow-x-hidden overflow-y-auto ${
+            !isWorkspace ? 'pt-[76px] pb-28 md:pb-8' : ''
+          }`}
+        >
           {children}
         </main>
       </div>
