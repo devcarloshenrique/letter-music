@@ -10,8 +10,6 @@ import type { IHttpClient } from '../../../shared/providers/http/ihttp-client';
 import type { LoginInputDto, LoginOutputDto } from './dto';
 
 const ACCOUNTS_COOKIE_LOGIN_URL = 'https://accounts.cifraclub.com.br/v2/cookies/login';
-const BLOCKED_COOKIE_REDIRECT_HOSTS = new Set(['accounts.palcomp3.com.br']);
-const MAX_COOKIE_REDIRECT_STEPS = 5;
 
 type AuthMutationResponse = {
   data?: {
@@ -32,21 +30,6 @@ type AuthMutationResponse = {
 
 export class LoginUseCase {
   constructor(private readonly httpClient: IHttpClient) {}
-
-  private getRedirectLocation(
-    headers?: Record<string, string | string[] | undefined>
-  ): string | undefined {
-    if (!headers) {
-      return undefined;
-    }
-
-    const locationHeader = headers.location;
-    if (Array.isArray(locationHeader)) {
-      return locationHeader[0];
-    }
-
-    return locationHeader;
-  }
 
   async execute(input?: LoginInputDto): Promise<LoginOutputDto> {
     const email = input?.email ?? process.env.LETRAS_EMAIL;
@@ -98,33 +81,12 @@ export class LoginUseCase {
     loginUrl.searchParams.set('jwt', token);
     loginUrl.searchParams.set('href', LETRAS_BASE_URL);
 
-    let currentCookieUrl = loginUrl.toString();
-    for (let step = 0; step < MAX_COOKIE_REDIRECT_STEPS; step += 1) {
-      const cookieLoginResponse = await this.httpClient.get(
-        currentCookieUrl,
-        {
-          ...LETRAS_BROWSER_HEADERS
-        },
-        {
-          followRedirects: false
-        }
-      );
+    const cookieLoginResponse = await this.httpClient.get(loginUrl.toString(), {
+      ...LETRAS_BROWSER_HEADERS
+    });
 
-      if (cookieLoginResponse.status >= 400) {
-        throw new AppError('Falha ao realizar login no Letras.', 502);
-      }
-
-      const location = this.getRedirectLocation(cookieLoginResponse.headers);
-      if (!location || cookieLoginResponse.status < 300 || cookieLoginResponse.status >= 400) {
-        break;
-      }
-
-      const nextCookieUrl = new URL(location, currentCookieUrl);
-      if (BLOCKED_COOKIE_REDIRECT_HOSTS.has(nextCookieUrl.hostname.toLowerCase())) {
-        break;
-      }
-
-      currentCookieUrl = nextCookieUrl.toString();
+    if (cookieLoginResponse.status >= 400) {
+      throw new AppError('Falha ao realizar login no Letras.', 502);
     }
 
     const letrasWarmupResponse = await this.httpClient.get(LETRAS_BASE_URL, {

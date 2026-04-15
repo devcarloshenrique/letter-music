@@ -51,18 +51,8 @@ describe('LoginUseCase', () => {
       });
 
     vi.mocked(httpClient.get).mockResolvedValueOnce({
-      status: 307,
-      data: '',
-      headers: {
-        location: 'https://accounts.letras.mus.br/v2/cookies/login?provider=direct&jwt=jwt-token'
-      }
-    });
-    vi.mocked(httpClient.get).mockResolvedValueOnce({
-      status: 307,
-      data: '',
-      headers: {
-        location: 'https://accounts.palcomp3.com.br/v2/cookies/login?provider=direct&jwt=jwt-token'
-      }
+      status: 200,
+      data: '<html>cookie-login</html>'
     });
     vi.mocked(httpClient.get).mockResolvedValueOnce({
       status: 200,
@@ -78,7 +68,7 @@ describe('LoginUseCase', () => {
     expect(result.authenticated).toBe(true);
     expect(result.cookieCount).toBe(2);
     expect(httpClient.postJson).toHaveBeenCalledTimes(2);
-    expect(httpClient.get).toHaveBeenCalledTimes(3);
+    expect(httpClient.get).toHaveBeenCalledTimes(2);
     expect(httpClient.getCookies).toHaveBeenCalledTimes(3);
   });
 

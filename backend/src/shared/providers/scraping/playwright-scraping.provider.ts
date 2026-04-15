@@ -221,25 +221,16 @@ export class PlaywrightScrapingProvider implements ILyricsSearchProvider {
 
       if (input.page > 1) {
         for (let targetPage = 2; targetPage <= input.page; targetPage += 1) {
-          const clicked = await browserPage.evaluate(
-            ({ selector, page }) => {
-              const buttons = Array.from(document.querySelectorAll<HTMLElement>(selector));
-              const button = buttons.find((item) => item.textContent?.trim() === String(page));
+          const targetButton = browserPage.locator(PAGE_BUTTON_SELECTOR).getByText(String(targetPage), { exact: true }).first();
 
-              if (!button) {
-                return false;
-              }
+          if ((await targetButton.count()) === 0) {
+            return { results: [] };
+          }
 
-              button.click();
-              return true;
-            },
-            { selector: PAGE_BUTTON_SELECTOR, page: targetPage }
-          );
-
-          if (!clicked) {
-            return {
-              results: [],
-            };
+          try {
+            await targetButton.click();
+          } catch {
+            return { results: [] };
           }
 
           await browserPage.waitForFunction(

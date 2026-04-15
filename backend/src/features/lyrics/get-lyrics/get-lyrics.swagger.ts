@@ -66,6 +66,11 @@ export const getLyricsPathSpec = {
                         example: 10,
                         description: 'Total de itens retornados na página.'
                       },
+                      hasMore: {
+                        type: 'boolean',
+                        example: true,
+                        description: 'Indica se ainda existem páginas seguintes.'
+                      },
 
                       timestamp: { type: 'string', format: 'date-time' },
                       path: { type: 'string', example: '/api/lyrics' }
@@ -74,6 +79,7 @@ export const getLyricsPathSpec = {
                       'page',
                       'pageSize',
                       'totalPages',
+                      'hasMore',
                       'timestamp',
                       'path'
                     ]

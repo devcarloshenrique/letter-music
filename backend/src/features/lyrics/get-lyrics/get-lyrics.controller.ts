@@ -10,6 +10,7 @@ export class GetLyricsController {
       const pageRaw = typeof req.query.page === 'string' ? Number(req.query.page) : undefined;
 
       const output = await this.useCase.execute({ q, page: pageRaw });
+      const hasMore = output.songs.length >= output.pageSize;
 
       res.json({
         success: true,
@@ -19,6 +20,7 @@ export class GetLyricsController {
           page: output.page,
           pageSize: output.pageSize,
           totalPages: output.totalPages,
+          hasMore,
           timestamp: new Date().toISOString(),
           path: req.path
         }

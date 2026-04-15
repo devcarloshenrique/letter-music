@@ -50,13 +50,23 @@ export const homeService = {
           page
         }
       });
-      return response.data;
+
+      return {
+        ...response.data,
+        metadata: {
+          ...response.data.metadata,
+          hasMore:
+            response.data.metadata.hasMore ??
+            response.data.data.length >= response.data.metadata.pageSize
+        }
+      };
     } catch (error) {
       if (axios.isAxiosError<ApiErrorResponse>(error) && error.response?.status === 404) {
         const metadata: SearchLyricsMetadata = {
           page,
           pageSize: SEARCH_LYRICS_PAGE_SIZE,
-          totalPages: page
+          totalPages: page,
+          hasMore: false
         };
 
         return {

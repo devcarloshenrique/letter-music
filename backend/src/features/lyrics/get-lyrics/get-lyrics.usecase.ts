@@ -30,6 +30,15 @@ export class GetLyricsUseCase {
     const songs = this.normalizeAndFilterResults(searchOutput.results);
 
     if (songs.length === 0) {
+      if (page > 1) {
+        return {
+          songs: [],
+          page,
+          pageSize: PAGE_SIZE,
+          totalPages: page - 1
+        };
+      }
+
       throw new AppError('Nenhuma música encontrada para a busca informada.', 404);
     }
 

@@ -1,10 +1,6 @@
 import type { AxiosInstance } from 'axios';
 import { CookieJar } from 'tough-cookie';
-import type {
-  HttpRequestOptions,
-  HttpResponse,
-  IHttpClient
-} from '../../providers/http/ihttp-client';
+import type { HttpResponse, IHttpClient } from '../../providers/http/ihttp-client';
 
 const axiosLib = require('axios') as typeof import('axios');
 const { wrapper } = require('axios-cookiejar-support') as {
@@ -66,15 +62,8 @@ export class AxiosHttpClient implements IHttpClient {
     };
   }
 
-  async get<TData = unknown>(
-    url: string,
-    headers?: Record<string, string>,
-    options?: HttpRequestOptions
-  ): Promise<HttpResponse<TData>> {
-    const response = await this.client.get<TData>(url, {
-      headers,
-      maxRedirects: options?.followRedirects === false ? 0 : undefined
-    });
+  async get<TData = unknown>(url: string, headers?: Record<string, string>): Promise<HttpResponse<TData>> {
+    const response = await this.client.get<TData>(url, { headers });
 
     return {
       status: response.status,

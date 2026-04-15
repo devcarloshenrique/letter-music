@@ -40,7 +40,7 @@ export const useInfiniteScroll = ({
     observer.observe(element);
 
     return () => {
-      observer.unobserve(element);
+      observer.disconnect();
     };
   }, [handleObserver, rootMargin, threshold]);
 

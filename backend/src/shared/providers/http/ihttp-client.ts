@@ -4,10 +4,6 @@ export type HttpResponse<TData = unknown> = {
   headers?: Record<string, string | string[] | undefined>;
 };
 
-export type HttpRequestOptions = {
-  followRedirects?: boolean;
-};
-
 export interface IHttpClient {
   postForm<TData = unknown>(
     url: string,
@@ -19,10 +15,6 @@ export interface IHttpClient {
     body: unknown,
     headers?: Record<string, string>
   ): Promise<HttpResponse<TData>>;
-  get<TData = unknown>(
-    url: string,
-    headers?: Record<string, string>,
-    options?: HttpRequestOptions
-  ): Promise<HttpResponse<TData>>;
+  get<TData = unknown>(url: string, headers?: Record<string, string>): Promise<HttpResponse<TData>>;
   getCookies(url: string): Promise<string[]>;
 }

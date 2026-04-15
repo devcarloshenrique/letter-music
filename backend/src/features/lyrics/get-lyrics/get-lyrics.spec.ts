@@ -151,6 +151,27 @@ describe('GetLyricsUseCase', () => {
     ).rejects.toMatchObject({ statusCode: 400 });
   });
 
+  it('retorna página vazia sem erro quando não há mais resultados em páginas posteriores', async () => {
+    const provider = createProviderMock();
+    const useCase = new GetLyricsUseCase(provider);
+
+    vi.mocked(provider.searchLyrics).mockResolvedValueOnce({
+      results: []
+    });
+    vi.mocked(provider.searchLyrics).mockResolvedValueOnce({
+      results: []
+    });
+
+    const output = await useCase.execute({
+      q: 'eminem',
+      page: 2
+    });
+
+    expect(output.songs).toHaveLength(0);
+    expect(output.page).toBe(2);
+    expect(output.pageSize).toBe(10);
+  });
+
   it('retorna 404 quando não encontra resultados nem no fallback', async () => {
     const provider = createProviderMock();
     const useCase = new GetLyricsUseCase(provider);
