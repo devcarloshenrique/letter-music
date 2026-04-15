@@ -24,6 +24,7 @@ export default function LyricsWorkspacePage() {
   const queryUrl = searchParams.get('url')?.trim() ?? '';
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(true);
+  const [isAutoFollowEnabled, setIsAutoFollowEnabled] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
   const from = (location.state as { from?: string } | null)?.from;
@@ -36,7 +37,6 @@ export default function LyricsWorkspacePage() {
 
   const lines = syncedLyricsQuery.data?.lines ?? [];
   const lineRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const manualScrollPauseUntilRef = useRef(0);
 
   const {
     activeLineIndex,
@@ -78,7 +78,11 @@ export default function LyricsWorkspacePage() {
   }, []);
 
   const handleManualScroll = useCallback(() => {
-    manualScrollPauseUntilRef.current = Date.now() + 1800;
+    setIsAutoFollowEnabled(false);
+  }, []);
+
+  const handleResumeAutoFollow = useCallback(() => {
+    setIsAutoFollowEnabled(true);
   }, []);
 
   useEffect(() => {
@@ -95,7 +99,7 @@ export default function LyricsWorkspacePage() {
       return;
     }
 
-    if (Date.now() <= manualScrollPauseUntilRef.current) {
+    if (!isAutoFollowEnabled) {
       return;
     }
 
@@ -106,7 +110,7 @@ export default function LyricsWorkspacePage() {
       // We keep it smooth for premium feel but ensure the 50ms trigger is fast enough.
       lineElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-  }, [activeLineIndex, loopIndices.length, viewMode]);
+  }, [activeLineIndex, isAutoFollowEnabled, loopIndices.length, viewMode]);
 
   const videoId = extractYouTubeVideoId(syncedLyricsQuery.data?.video_url);
 
@@ -174,6 +178,9 @@ export default function LyricsWorkspacePage() {
             onLoopRangeChange={setLoopRange}
             registerLineRef={registerLineRef}
             onManualScroll={handleManualScroll}
+            isAutoFollowEnabled={isAutoFollowEnabled}
+            onResumeAutoFollow={handleResumeAutoFollow}
+            isSidePanelOpen={isSidePanelOpen}
             onBack={handleBack}
           />
         </div>

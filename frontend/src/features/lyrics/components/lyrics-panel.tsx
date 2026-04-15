@@ -1,4 +1,4 @@
-import { ChevronLeft, LoaderCircle, Repeat, TriangleAlert } from 'lucide-react';
+import { ChevronLeft, LoaderCircle, LocateFixed, Repeat, TriangleAlert } from 'lucide-react';
 import type { SyncedLine } from '../../home/types/home.types';
 import { formatSyncedTimeLabel, parseSyncedTimeToSeconds, formatSecondsLabel } from '../utils/lyrics-time.utils';
 import { LoopRangeSelector } from './loop-range-selector';
@@ -16,6 +16,9 @@ type LyricsPanelProps = {
   onLoopRangeChange: (range: { startOffset: number; endOffset: number } | null) => void;
   registerLineRef: (index: number, element: HTMLButtonElement | null) => void;
   onManualScroll: () => void;
+  isAutoFollowEnabled: boolean;
+  onResumeAutoFollow: () => void;
+  isSidePanelOpen?: boolean;
   onBack: () => void;
 };
 
@@ -32,6 +35,9 @@ export function LyricsPanel({
   onLoopRangeChange,
   registerLineRef,
   onManualScroll,
+  isAutoFollowEnabled,
+  onResumeAutoFollow,
+  isSidePanelOpen = false,
   onBack
 }: LyricsPanelProps) {
   return (
@@ -151,6 +157,20 @@ export function LyricsPanel({
               );
             })}
           </div>
+        )}
+
+        {!isAutoFollowEnabled && (
+          <button
+            type='button'
+            onClick={onResumeAutoFollow}
+            className={`interactive-scale premium-transition fixed bottom-28 z-40 inline-flex h-11 w-11 items-center justify-center rounded-full border border-secondary/35 bg-surface-high/90 text-secondary shadow-glow-secondary backdrop-blur-md hover:bg-surface-high ${
+              isSidePanelOpen ? 'right-6 lg:right-[28rem]' : 'right-6'
+            }`}
+            aria-label='Retomar acompanhamento automático da letra'
+            title='Retomar acompanhamento'
+          >
+            <LocateFixed size={16} />
+          </button>
         )}
       </div>
     </section>
