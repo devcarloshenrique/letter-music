@@ -1,29 +1,91 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { homeSearchSchema, type HomeSearchSchema } from '../schemas/home.schema';
 import { useSearchLyrics } from '../hooks/use-search-lyrics';
 import { SearchResults } from '../components/search-results';
 
 export default function HomePage() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useSearchLyrics(searchQuery);
+  const [highlightedSongKey, setHighlightedSongKey] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchQuery = (searchParams.get('q') ?? '').trim();
+  const { data, isLoading, isFetchingNextPage, isFetchNextPageError, hasNextPage, fetchNextPage } = useSearchLyrics(searchQuery);
 
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors }
   } = useForm<HomeSearchSchema>({
     resolver: zodResolver(homeSearchSchema),
     defaultValues: {
-      query: ''
+      query: searchQuery
     }
   });
 
+  useEffect(() => {
+    setValue('query', searchQuery, {
+      shouldDirty: false,
+      shouldTouch: false,
+      shouldValidate: false
+    });
+  }, [searchQuery, setValue]);
+
+  useEffect(() => {
+    if (!searchQuery || !data) {
+      return;
+    }
+
+    const selectedSongKey = sessionStorage.getItem('home:last-selected-song-key');
+    if (!selectedSongKey) {
+      return;
+    }
+
+    const selectedCard = document.querySelector<HTMLElement>(`[data-song-key="${selectedSongKey}"]`);
+    if (!selectedCard) {
+      return;
+    }
+
+    selectedCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const highlightTimeoutId = window.setTimeout(() => {
+      setHighlightedSongKey(selectedSongKey);
+    }, 0);
+
+    sessionStorage.removeItem('home:last-selected-song-key');
+
+    return () => {
+      window.clearTimeout(highlightTimeoutId);
+    };
+  }, [data, searchQuery]);
+
+  useEffect(() => {
+    if (!highlightedSongKey) {
+      return;
+    }
+
+    const handlePointerDown = () => {
+      setHighlightedSongKey(null);
+    };
+
+    window.addEventListener('pointerdown', handlePointerDown, { once: true });
+
+    return () => {
+      window.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, [highlightedSongKey]);
+
   const onSubmit = ({ query }: HomeSearchSchema) => {
-    setSearchQuery(query.trim());
+    const normalizedQuery = query.trim();
+
+    if (normalizedQuery.length === 0) {
+      setSearchParams({});
+      return;
+    }
+
+    setSearchParams({ q: normalizedQuery });
   };
 
   return (
@@ -81,9 +143,11 @@ export default function HomePage() {
             data={data}
             isLoading={isLoading}
             isFetchingNextPage={isFetchingNextPage}
+            isFetchNextPageError={isFetchNextPageError}
             hasNextPage={hasNextPage}
             fetchNextPage={fetchNextPage}
             searchQuery={searchQuery}
+            highlightedSongKey={highlightedSongKey}
           />
         </motion.div>
       )}

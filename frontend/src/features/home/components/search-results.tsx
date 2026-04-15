@@ -3,35 +3,45 @@ import type { SearchLyricsSuccessResponse } from '../types/home.types';
 import { useInfiniteScroll } from '../../../shared/hooks/use-infinite-scroll';
 import type { InfiniteData } from '@tanstack/react-query';
 import { Search, Music, ArrowRight, Loader2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 interface SearchResultsProps {
   data: InfiniteData<SearchLyricsSuccessResponse> | undefined;
   isLoading: boolean;
   isFetchingNextPage: boolean;
+  isFetchNextPageError: boolean;
   hasNextPage: boolean | undefined;
   fetchNextPage: () => void;
   searchQuery: string;
+  highlightedSongKey: string | null;
 }
 
 export function SearchResults({
   data,
   isLoading,
   isFetchingNextPage,
+  isFetchNextPageError,
   hasNextPage,
   fetchNextPage,
-  searchQuery
+  searchQuery,
+  highlightedSongKey
 }: SearchResultsProps) {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const { observerTarget } = useInfiniteScroll({
     isFetchingNextPage,
-    hasNextPage,
+    hasNextPage: hasNextPage && !isFetchNextPageError,
     fetchNextPage,
-    rootMargin: '200px',
+    rootMargin: '200px'
   });
 
   const allSongs = data?.pages.flatMap((page) => page.data) || [];
+  const persistLastSelectedSong = (songUrl: string) => {
+    const songKey = encodeURIComponent(songUrl);
+    sessionStorage.setItem('home:last-selected-song-key', songKey);
+    return songKey;
+  };
 
   if (isLoading) {
     return (
@@ -73,11 +83,23 @@ export function SearchResults({
         {allSongs.map((song, index) => (
           <motion.div
             key={`${song.url}-${index}`}
+            data-song-key={encodeURIComponent(song.url)}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
-            onClick={() => navigate(`/lyrics?url=${encodeURIComponent(song.url)}`)}
-            className="group relative flex flex-col p-5 bg-surface rounded-xl border border-outline-variant hover:border-primary/50 transition-all cursor-pointer hover:shadow-glow-primary overflow-hidden"
+            transition={{ duration: 0.18 }}
+            onClick={() =>
+              navigate(`/lyrics?url=${encodeURIComponent(song.url)}`, {
+                state: {
+                  from: `${location.pathname}${location.search}`,
+                  selectedSongKey: persistLastSelectedSong(song.url)
+                }
+              })
+            }
+            className={`group relative flex flex-col p-5 bg-surface rounded-xl border transition-all cursor-pointer hover:shadow-glow-primary overflow-hidden ${
+              highlightedSongKey === encodeURIComponent(song.url)
+                ? 'border-primary ring-2 ring-primary/35'
+                : 'border-outline-variant hover:border-primary/50'
+            }`}
           >
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             
@@ -107,6 +129,17 @@ export function SearchResults({
         ref={observerTarget} 
         className="w-full h-16 flex items-center justify-center mt-4"
       >
+        {isFetchNextPageError && (
+          <button
+            type="button"
+            onClick={() => {
+              void fetchNextPage();
+            }}
+            className="rounded-full border border-error/40 bg-error/10 px-4 py-2 text-sm font-semibold text-error hover:bg-error/20"
+          >
+            Falha ao carregar mais. Tentar novamente
+          </button>
+        )}
         {isFetchingNextPage && (
           <div className="flex items-center gap-2 text-primary">
             <Loader2 className="w-5 h-5 animate-spin" />

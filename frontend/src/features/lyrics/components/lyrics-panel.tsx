@@ -1,5 +1,4 @@
 import { ChevronLeft, LoaderCircle, TriangleAlert, Repeat } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import type { SyncedLine } from '../../home/types/home.types';
 import { formatSyncedTimeLabel, parseSyncedTimeToSeconds, formatSecondsLabel } from '../utils/lyrics-time.utils';
 import { LoopRangeSelector } from './loop-range-selector';
@@ -17,6 +16,7 @@ type LyricsPanelProps = {
   onLoopRangeChange: (range: { startOffset: number; endOffset: number } | null) => void;
   registerLineRef: (index: number, element: HTMLButtonElement | null) => void;
   onManualScroll: () => void;
+  onBack: () => void;
 };
 
 export function LyricsPanel({
@@ -31,19 +31,21 @@ export function LyricsPanel({
   onLoopToggle,
   onLoopRangeChange,
   registerLineRef,
-  onManualScroll
+  onManualScroll,
+  onBack
 }: LyricsPanelProps) {
   return (
     <section className='relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-black/20 lg:w-auto'>
       <header className='sticky top-0 z-20 flex items-center justify-between border-b border-outline-variant/20 bg-background/85 px-6 py-5 backdrop-blur-xl md:px-10'>
         <div className='flex items-center gap-3'>
-          <Link
-            to='/'
+          <button
+            type='button'
+            onClick={onBack}
             className='interactive-scale premium-transition inline-flex h-9 w-9 items-center justify-center rounded-full bg-surface-high text-on-surface-variant hover:text-secondary'
             aria-label='Voltar para busca'
           >
             <ChevronLeft size={18} />
-          </Link>
+          </button>
           <div>
             <p className='text-label text-secondary'>Synchronized Lyrics</p>
             <p className='max-w-[55vw] truncate text-xs text-on-surface-variant md:text-sm'>{queryUrl || 'Sem URL informada'}</p>

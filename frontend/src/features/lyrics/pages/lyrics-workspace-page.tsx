@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { homeService } from '../../home/services/home.service';
+import type { SyncedLine } from '../../home/types/home.types';
 import { LyricsControlPanel } from '../components/lyrics-control-panel';
 import { LyricsPanel } from '../components/lyrics-panel';
 import { useLyricsPlayer } from '../hooks/use-lyrics-player';
@@ -10,6 +11,9 @@ import { extractYouTubeVideoId } from '../utils/lyrics-time.utils';
 export default function LyricsWorkspacePage() {
   const [searchParams] = useSearchParams();
   const queryUrl = searchParams.get('url')?.trim() ?? '';
+  const location = useLocation();
+  const navigate = useNavigate();
+  const from = (location.state as { from?: string } | null)?.from;
 
   const syncedLyricsQuery = useQuery({
     queryKey: ['synced-lyrics', queryUrl],
@@ -37,7 +41,7 @@ export default function LyricsWorkspacePage() {
   } = useLyricsPlayer(lines);
 
   const handleLineClick = useCallback(
-    (line: any, _event: React.MouseEvent) => {
+    (line: SyncedLine) => {
       seekToLine(line);
     },
     [seekToLine]
@@ -80,6 +84,20 @@ export default function LyricsWorkspacePage() {
 
   const videoId = extractYouTubeVideoId(syncedLyricsQuery.data?.video_url);
 
+  const handleBack = useCallback(() => {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+
+    if (typeof from === 'string' && from.length > 0) {
+      navigate(from);
+      return;
+    }
+
+    navigate('/');
+  }, [from, navigate]);
+
   return (
     <div className='flex h-full w-full flex-col overflow-hidden'>
       <main className='flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row'>
@@ -97,6 +115,7 @@ export default function LyricsWorkspacePage() {
             onLoopRangeChange={setLoopRange}
             registerLineRef={registerLineRef}
             onManualScroll={handleManualScroll}
+            onBack={handleBack}
           />
         </div>
 

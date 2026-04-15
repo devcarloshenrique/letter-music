@@ -10,6 +10,10 @@ export const useSearchLyrics = (query: string) => {
     queryKey: ['search-lyrics', normalizedQuery],
     queryFn: ({ pageParam = 1 }) => homeService.searchLyrics(normalizedQuery, pageParam),
     getNextPageParam: (lastPage, allPages) => {
+      if (lastPage.data.length === 0) {
+        return undefined;
+      }
+
       const currentPage = lastPage.metadata?.page ?? allPages.length;
 
       if (lastPage.metadata?.hasMore === false) {
@@ -24,6 +28,7 @@ export const useSearchLyrics = (query: string) => {
     },
     enabled: normalizedQuery.length > 0,
     initialPageParam: 1,
-    retry: 1
+    retry: 1,
+    retryOnMount: false
   });
 };
