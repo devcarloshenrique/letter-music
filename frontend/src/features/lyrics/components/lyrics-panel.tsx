@@ -1,7 +1,9 @@
-import { ChevronLeft, LoaderCircle, TriangleAlert, Repeat } from 'lucide-react';
+import { AudioLines, ChevronLeft, List, LoaderCircle, Repeat, TriangleAlert } from 'lucide-react';
 import type { SyncedLine } from '../../home/types/home.types';
 import { formatSyncedTimeLabel, parseSyncedTimeToSeconds, formatSecondsLabel } from '../utils/lyrics-time.utils';
 import { LoopRangeSelector } from './loop-range-selector';
+
+type ViewMode = 'list' | 'karaoke';
 
 type LyricsPanelProps = {
   queryUrl: string;
@@ -9,14 +11,16 @@ type LyricsPanelProps = {
   activeLineIndex: number;
   loopIndices?: number[];
   loopRange?: { startOffset: number; endOffset: number } | null;
+  viewMode: ViewMode;
   isLoading: boolean;
   errorMessage?: string;
-  onLineClick: (line: SyncedLine, event: React.MouseEvent) => void;
+  onLineClick: (line: SyncedLine) => void;
   onLoopToggle: (index: number) => void;
   onLoopRangeChange: (range: { startOffset: number; endOffset: number } | null) => void;
   registerLineRef: (index: number, element: HTMLButtonElement | null) => void;
   onManualScroll: () => void;
   onBack: () => void;
+  onToggleViewMode: () => void;
 };
 
 export function LyricsPanel({
@@ -25,6 +29,7 @@ export function LyricsPanel({
   activeLineIndex,
   loopIndices = [],
   loopRange,
+  viewMode,
   isLoading,
   errorMessage,
   onLineClick,
@@ -32,7 +37,8 @@ export function LyricsPanel({
   onLoopRangeChange,
   registerLineRef,
   onManualScroll,
-  onBack
+  onBack,
+  onToggleViewMode
 }: LyricsPanelProps) {
   return (
     <section className='relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-black/20 lg:w-auto'>
@@ -51,6 +57,15 @@ export function LyricsPanel({
             <p className='max-w-[55vw] truncate text-xs text-on-surface-variant md:text-sm'>{queryUrl || 'Sem URL informada'}</p>
           </div>
         </div>
+        <button
+          type='button'
+          onClick={onToggleViewMode}
+          className='interactive-scale premium-transition inline-flex items-center gap-2 rounded-full bg-surface-high px-3 py-2 text-xs font-bold uppercase tracking-wide text-on-surface-variant hover:text-secondary'
+          aria-label={viewMode === 'list' ? 'Alternar para modo karaoke' : 'Alternar para modo lista'}
+        >
+          {viewMode === 'list' ? <AudioLines size={14} /> : <List size={14} />}
+          {viewMode === 'list' ? 'Karaoke' : 'Lista'}
+        </button>
       </header>
 
       <div className='min-h-0 flex-1 overflow-y-auto px-6 py-8 md:px-12' onWheel={onManualScroll} onTouchMove={onManualScroll}>
@@ -116,7 +131,7 @@ export function LyricsPanel({
                       <button
                         ref={(element) => registerLineRef(index, element)}
                         type='button'
-                        onClick={(e) => onLineClick(line, e)}
+                        onClick={() => onLineClick(line)}
                         className="w-full text-left"
                       >
                         <p className={`premium-transition leading-tight transition-all duration-300 ${

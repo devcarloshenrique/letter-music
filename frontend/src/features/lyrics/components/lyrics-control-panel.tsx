@@ -1,12 +1,14 @@
-import { Keyboard, Repeat } from 'lucide-react';
+import { Keyboard, Repeat, Volume2 } from 'lucide-react';
 import YouTube from 'react-youtube';
 
 type LyricsControlPanelProps = {
   videoId: string | null;
   playbackRate: number;
+  volume: number;
   playbackSpeeds: readonly number[];
   loopActive: boolean;
   onSpeedSelect: (rate: number) => void;
+  onVolumeChange: (value: number) => void;
   onToggleLoop: () => void;
   onPlayerReady: (event: { target: unknown }) => void;
   onPlayerStateChange: (event: { data: number }) => void;
@@ -15,9 +17,11 @@ type LyricsControlPanelProps = {
 export function LyricsControlPanel({
   videoId,
   playbackRate,
+  volume,
   playbackSpeeds,
   loopActive,
   onSpeedSelect,
+  onVolumeChange,
   onToggleLoop,
   onPlayerReady,
   onPlayerStateChange
@@ -67,6 +71,25 @@ export function LyricsControlPanel({
               {speed.toFixed(2)}x
             </button>
           ))}
+        </div>
+      </div>
+
+      <div className='glass-surface rounded-2xl p-5'>
+        <div className='mb-4 flex items-center justify-between'>
+          <p className='text-label text-on-surface-variant'>Volume</p>
+          <span className='text-xs font-bold text-secondary'>{volume}%</span>
+        </div>
+        <div className='flex items-center gap-3'>
+          <Volume2 size={16} className='text-on-surface-variant' />
+          <input
+            type='range'
+            min={0}
+            max={100}
+            value={volume}
+            onChange={(event) => onVolumeChange(Number(event.target.value))}
+            className='w-full accent-secondary'
+            aria-label='Controle de volume'
+          />
         </div>
       </div>
 

@@ -9,6 +9,8 @@ type PlayerLike = {
   playVideo: () => void;
   pauseVideo: () => void;
   setPlaybackRate: (rate: number) => void;
+  setVolume: (volume: number) => void;
+  getVolume: () => number;
   getCurrentTime: () => number;
   getPlayerState: () => number;
 };
@@ -18,6 +20,7 @@ export function useLyricsPlayer(lines: SyncedLine[]) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [playbackRate, setPlaybackRate] = useState<number>(1);
+  const [volume, setVolumeState] = useState<number>(80);
   const [loopIndices, setLoopIndices] = useState<number[]>([]);
   const [loopRange, setLoopRange] = useState<{ startOffset: number; endOffset: number } | null>(null);
 
@@ -94,6 +97,12 @@ export function useLyricsPlayer(lines: SyncedLine[]) {
     playerRef.current?.setPlaybackRate(rate);
   }, []);
 
+  const setVolume = useCallback((nextVolume: number) => {
+    const boundedVolume = Math.max(0, Math.min(100, Math.round(nextVolume)));
+    setVolumeState(boundedVolume);
+    playerRef.current?.setVolume(boundedVolume);
+  }, []);
+
   const cycleSpeed = useCallback(() => {
     const currentIndex = PLAYBACK_SPEEDS.findIndex((speed) => speed === playbackRate);
     const nextRate = PLAYBACK_SPEEDS[(currentIndex + 1) % PLAYBACK_SPEEDS.length];
@@ -147,9 +156,10 @@ export function useLyricsPlayer(lines: SyncedLine[]) {
     (event: { target: unknown }) => {
       playerRef.current = event.target as PlayerLike;
       playerRef.current.setPlaybackRate(playbackRate);
+      playerRef.current.setVolume(volume);
       setIsPlayerReady(true);
     },
-    [playbackRate]
+    [playbackRate, volume]
   );
 
   const handlePlayerStateChange = useCallback((event: { data: number }) => {
@@ -258,15 +268,18 @@ export function useLyricsPlayer(lines: SyncedLine[]) {
     currentTime,
     isPlaying,
     playbackRate,
+    volume,
     playbackSpeeds: PLAYBACK_SPEEDS,
     loopIndices,
     loopRange,
     setLoopRange,
     setSpeed,
+    setVolume,
     seekToLine,
-  toggleLoopLine,
+    toggleLoopLine,
     cycleSpeed,
     togglePlayPause,
+    jumpToAdjacentLine,
     toggleLoop,
     handlePlayerReady,
     handlePlayerStateChange
