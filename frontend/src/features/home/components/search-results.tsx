@@ -88,14 +88,18 @@ export function SearchResults({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.18 }}
-            onClick={() =>
+            onClick={() => {
+              const fullTitle = song.title.split(' - ')[0];
+              const author = song.title.split(' - ')[1] || song.description || 'Unknown Artist';
               navigate(`/lyrics?url=${encodeURIComponent(song.url)}`, {
                 state: {
                   from: `${location.pathname}${location.search}`,
-                  selectedSongKey: persistLastSelectedSong(song.url)
+                  selectedSongKey: persistLastSelectedSong(song.url),
+                  songTitle: fullTitle.trim(),
+                  artistName: author.trim()
                 }
-              })
-            }
+              });
+            }}
             className={`glass-panel hover:bg-surface-container-high transition-all duration-200 p-3 md:p-3.5 rounded-lg flex items-start justify-between gap-2.5 group cursor-pointer min-h-[108px] ${
               highlightedSongKey === encodeURIComponent(song.url)
                 ? 'border-primary ring-2 ring-primary/35'

@@ -27,7 +27,10 @@ export default function LyricsWorkspacePage() {
   const [isAutoFollowEnabled, setIsAutoFollowEnabled] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
-  const from = (location.state as { from?: string } | null)?.from;
+  const locationState = location.state as { from?: string; songTitle?: string; artistName?: string } | null;
+  const from = locationState?.from;
+  const passedSongTitle = locationState?.songTitle;
+  const passedArtistName = locationState?.artistName;
 
   const syncedLyricsQuery = useQuery({
     queryKey: ['synced-lyrics', queryUrl],
@@ -115,6 +118,10 @@ export default function LyricsWorkspacePage() {
 
   // Extract song metadata from URL
   const { songTitle, artistName } = useMemo(() => {
+    if (passedSongTitle && passedArtistName) {
+      return { songTitle: passedSongTitle, artistName: passedArtistName };
+    }
+
     const normalizedUrl = queryUrl.replace(/\/$/, '');
     const urlParts = normalizedUrl.split('/').filter(Boolean);
     const songSlug = urlParts[urlParts.length - 1] ?? '';
@@ -124,7 +131,7 @@ export default function LyricsWorkspacePage() {
       songTitle: formatSlug(songSlug) || 'Faixa sem título',
       artistName: formatSlug(artistSlug) || 'Artista'
     };
-  }, [queryUrl]);
+  }, [queryUrl, passedSongTitle, passedArtistName]);
 
   // Get thumbnail
   const thumbnail = useMemo(() => videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : undefined, [videoId]);
@@ -226,14 +233,9 @@ export default function LyricsWorkspacePage() {
             videoId={videoId}
             videoSlotId='lyrics-sidebar-video-slot'
             playbackRate={playbackRate}
-            volume={volume}
             playbackSpeeds={playbackSpeeds}
-            loopActive={loopIndices.length > 0}
             onSpeedSelect={setSpeed}
-            onVolumeChange={setVolume}
-            onToggleLoop={toggleLoop}
             onClose={() => setIsSidePanelOpen(false)}
-            onMute={() => setVolume(0)}
           />
         </div>
 
@@ -241,13 +243,8 @@ export default function LyricsWorkspacePage() {
           <LyricsControlPanel
             videoId={videoId}
             playbackRate={playbackRate}
-            volume={volume}
             playbackSpeeds={playbackSpeeds}
-            loopActive={loopIndices.length > 0}
             onSpeedSelect={setSpeed}
-            onVolumeChange={setVolume}
-            onToggleLoop={toggleLoop}
-            onMute={() => setVolume(0)}
           />
         </div>
       </main>
@@ -256,6 +253,8 @@ export default function LyricsWorkspacePage() {
         <main className='flex min-h-0 flex-1 flex-col overflow-hidden pb-20 md:pb-24'>
           <KaraokeView
             queryUrl={queryUrl}
+            songTitle={songTitle}
+            artistName={artistName}
             lines={lines}
             activeLineIndex={activeLineIndex}
             isLoading={syncedLyricsQuery.isLoading}

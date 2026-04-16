@@ -1,4 +1,4 @@
-import { Keyboard, Repeat, Volume2, X } from 'lucide-react';
+import { Keyboard, X } from 'lucide-react';
 
 type LyricsControlPanelProps = {
   videoId: string | null;
@@ -18,17 +18,12 @@ export function LyricsControlPanel({
   videoId,
   videoSlotId,
   playbackRate,
-  volume,
   playbackSpeeds,
-  loopActive,
   onSpeedSelect,
-  onVolumeChange,
-  onToggleLoop,
-  onClose,
-  onMute
-}: LyricsControlPanelProps) {
+  onClose
+}: Omit<LyricsControlPanelProps, 'loopActive' | 'onToggleLoop' | 'volume' | 'onVolumeChange' | 'onMute'>) {
   return (
-    <aside className='flex h-full min-h-0 w-full flex-col gap-6 overflow-y-auto bg-surface p-6 md:p-8'>
+    <aside className='flex h-full min-h-0 w-full flex-col gap-4 overflow-y-auto bg-surface p-4 md:p-6'>
       <div className='flex items-center justify-between'>
         <p className='text-label text-on-surface-variant'>Painel de Controle</p>
         {onClose && (
@@ -43,31 +38,31 @@ export function LyricsControlPanel({
         )}
       </div>
 
-      <div className='glass-surface shrink-0 overflow-hidden rounded-2xl'>
+      <div className='shrink-0 overflow-hidden rounded-2xl border-none outline-none ring-0'>
         {videoId ? (
           videoSlotId ? (
             <div
               id={videoSlotId}
-              className='aspect-video bg-surface-high bg-cover bg-center'
+              className='aspect-video bg-cover bg-center border-none'
               style={{ backgroundImage: `url(https://img.youtube.com/vi/${videoId}/hqdefault.jpg)` }}
             />
           ) : (
-            <div className='aspect-video bg-surface-high'>
+            <div className='aspect-video'>
               <img
                 src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
                 alt='Capa do video atual'
-                className='h-full w-full object-cover'
+                className='h-full w-full object-cover border-none'
               />
             </div>
           )
         ) : (
-          <div className='flex aspect-video items-center justify-center bg-surface-high text-sm text-on-surface-variant'>
+          <div className='flex aspect-video items-center justify-center text-sm text-on-surface-variant'>
             Sem vídeo disponível
           </div>
         )}
       </div>
 
-      <div className='glass-surface rounded-2xl p-5'>
+      <div className='glass-surface rounded-2xl p-4'>
         <div className='mb-4 flex items-center justify-between'>
           <p className='text-label text-on-surface-variant'>Playback Speed</p>
           <span className='text-xs font-bold text-secondary'>{playbackRate.toFixed(2)}x</span>
@@ -90,53 +85,7 @@ export function LyricsControlPanel({
         </div>
       </div>
 
-      <div className='glass-surface rounded-2xl p-5'>
-        <div className='mb-4 flex items-center justify-between'>
-          <p className='text-label text-on-surface-variant'>Volume</p>
-          <span className='text-xs font-bold text-secondary'>{volume}%</span>
-        </div>
-        <div className='flex items-center gap-3'>
-          <button
-            type='button'
-            onClick={onMute}
-            className='interactive-scale premium-transition inline-flex h-7 w-7 items-center justify-center rounded-full text-on-surface-variant hover:text-secondary'
-            aria-label='Mutar volume'
-          >
-            <Volume2 size={16} />
-          </button>
-          <input
-            type='range'
-            min={0}
-            max={100}
-            value={volume}
-            onChange={(event) => onVolumeChange(Number(event.target.value))}
-            className='w-full accent-secondary'
-            aria-label='Controle de volume'
-          />
-        </div>
-      </div>
-
-      <div className='glass-surface rounded-2xl p-5'>
-        <p className='text-label text-on-surface-variant'>Playback Mode</p>
-        <div className='mt-3'>
-          <button
-            type='button'
-            onClick={onToggleLoop}
-            className={`interactive-scale premium-transition flex w-full items-center justify-center gap-2 rounded-xl border px-3 py-3 text-xs font-bold uppercase tracking-wide ${
-              loopActive
-                ? 'border-primary/30 bg-primary/15 text-primary shadow-glow-primary'
-                : 'border-outline-variant/40 bg-surface-high text-on-surface-variant hover:text-on-surface'
-            }`}
-          >
-            <Repeat size={14} /> {loopActive ? 'Loop Active' : 'Enable Loop'}
-          </button>
-          <p className='mt-3 text-[10px] text-center text-on-surface-variant/50 uppercase tracking-widest font-bold'>
-            Ctrl/Shift + Click on lyrics to loop multiple lines
-          </p>
-        </div>
-      </div>
-
-      <div className='glass-surface rounded-2xl p-5'>
+      <div className='glass-surface rounded-2xl p-4'>
         <p className='text-label text-on-surface-variant'>Hotkeys</p>
         <ul className='mt-3 space-y-2 text-xs text-on-surface-variant'>
           <li className='flex items-center justify-between rounded-lg bg-surface-high/70 px-3 py-2'>

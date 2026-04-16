@@ -4,6 +4,8 @@ import type { SyncedLine } from '../../home/types/home.types';
 
 type KaraokeViewProps = {
   queryUrl: string;
+  songTitle?: string;
+  artistName?: string;
   lines: SyncedLine[];
   activeLineIndex: number;
   isLoading: boolean;
@@ -14,6 +16,8 @@ type KaraokeViewProps = {
 
 export function KaraokeView({
   queryUrl,
+  songTitle: passedSongTitle,
+  artistName: passedArtistName,
   lines,
   activeLineIndex,
   isLoading,
@@ -32,8 +36,8 @@ export function KaraokeView({
       .trim()
       .replace(/\b\w/g, (char) => char.toUpperCase());
 
-  const songTitle = formatSlug(songSlug) || 'Faixa sem título';
-  const artistName = formatSlug(artistSlug) || 'Artista';
+  const songTitle = passedSongTitle || formatSlug(songSlug) || 'Faixa sem título';
+  const artistName = passedArtistName || formatSlug(artistSlug) || 'Artista';
 
   const maxresThumbnail = useMemo(
     () => (videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : null),
