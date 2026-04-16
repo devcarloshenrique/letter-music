@@ -1,7 +1,9 @@
 import { Keyboard, Repeat, Volume2, X } from 'lucide-react';
+import { GlobalLyricsPlayerHost } from './global-lyrics-player-host';
 
 type LyricsControlPanelProps = {
   videoId: string | null;
+  showLiveVideo?: boolean;
   playbackRate: number;
   volume: number;
   playbackSpeeds: readonly number[];
@@ -15,6 +17,7 @@ type LyricsControlPanelProps = {
 
 export function LyricsControlPanel({
   videoId,
+  showLiveVideo = false,
   playbackRate,
   volume,
   playbackSpeeds,
@@ -42,17 +45,23 @@ export function LyricsControlPanel({
       </div>
 
       <div className='glass-surface overflow-hidden rounded-2xl'>
-        <div className='aspect-video bg-surface-high'>
-          {videoId ? (
-            <img
-              src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
-              alt='Capa do video atual'
-              className='h-full w-full object-cover'
-            />
+        {videoId ? (
+          showLiveVideo ? (
+            <GlobalLyricsPlayerHost mode='panel' />
           ) : (
-            <div className='flex h-full items-center justify-center text-sm text-on-surface-variant'>Sem vídeo disponível</div>
-          )}
-        </div>
+            <div className='aspect-video bg-surface-high'>
+              <img
+                src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
+                alt='Capa do video atual'
+                className='h-full w-full object-cover'
+              />
+            </div>
+          )
+        ) : (
+          <div className='flex aspect-video items-center justify-center bg-surface-high text-sm text-on-surface-variant'>
+            Sem vídeo disponível
+          </div>
+        )}
       </div>
 
       <div className='glass-surface rounded-2xl p-5'>

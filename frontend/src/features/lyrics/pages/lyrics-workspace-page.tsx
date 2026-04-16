@@ -224,6 +224,7 @@ export default function LyricsWorkspacePage() {
         >
           <LyricsControlPanel
             videoId={videoId}
+            showLiveVideo
             playbackRate={playbackRate}
             volume={volume}
             playbackSpeeds={playbackSpeeds}
