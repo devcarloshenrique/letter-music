@@ -4,7 +4,7 @@
   :root {
     color: theme(--color-tertiary);
     background: theme(--color-background);
-    font-family: theme(--font-sans);
+    font-family: 'Inter', sans-serif;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -15,11 +15,11 @@
   }
 
   body {
-    @apply m-0 bg-background text-tertiary;
-  }
-
-  ::selection {
-    @apply bg-primary/30 text-on-primary-fixed;
+    background-color: #08070A;
+    background-image: radial-gradient(rgba(191, 64, 255, 0.05) 1px, transparent 1px);
+    background-size: 32px 32px;
+    font-family: 'Inter', sans-serif;
+    @apply m-0 text-on-surface min-h-screen selection:bg-primary selection:text-on-primary-container;
   }
 
   #root {
@@ -56,15 +56,16 @@
     scrollbar-color: theme(--color-outline-variant / 40%) transparent;
   }
 
+  .glass-panel {
+    background: rgba(27, 25, 29, 0.7);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(219, 144, 255, 0.1);
+  }
+
   .glass-surface {
     background: rgba(45, 43, 49, 0.6);
     backdrop-filter: blur(24px);
     border: 1px solid rgba(255, 255, 255, 0.05);
-  }
-
-  .dot-grid {
-    background-image: radial-gradient(circle, #27252a 1px, transparent 1px);
-    background-size: 24px 24px;
   }
 
   .focus-ring {

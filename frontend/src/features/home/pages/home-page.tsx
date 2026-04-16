@@ -1,6 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useSearchParams } from 'react-router-dom';
@@ -35,111 +34,103 @@ export default function HomePage() {
   }, [searchQuery, setValue]);
 
   useEffect(() => {
-    if (!searchQuery || !data) {
-      return;
-    }
+    if (!searchQuery || !data) return;
 
     const selectedSongKey = sessionStorage.getItem('home:last-selected-song-key');
-    if (!selectedSongKey) {
-      return;
-    }
+    if (!selectedSongKey) return;
 
     const selectedCard = document.querySelector<HTMLElement>(`[data-song-key="${selectedSongKey}"]`);
-    if (!selectedCard) {
-      return;
-    }
+    if (!selectedCard) return;
 
-    selectedCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    selectedCard.scrollIntoView({ behavior: 'smooth', block: 'center' });       
     const highlightTimeoutId = window.setTimeout(() => {
       setHighlightedSongKey(selectedSongKey);
     }, 0);
 
     sessionStorage.removeItem('home:last-selected-song-key');
-
-    return () => {
-      window.clearTimeout(highlightTimeoutId);
-    };
+    return () => window.clearTimeout(highlightTimeoutId);
   }, [data, searchQuery]);
 
   useEffect(() => {
-    if (!highlightedSongKey) {
-      return;
-    }
+    if (!highlightedSongKey) return;
 
-    const handlePointerDown = () => {
-      setHighlightedSongKey(null);
-    };
+    const handlePointerDown = () => setHighlightedSongKey(null);
+    window.addEventListener('pointerdown', handlePointerDown, { once: true });  
 
-    window.addEventListener('pointerdown', handlePointerDown, { once: true });
-
-    return () => {
-      window.removeEventListener('pointerdown', handlePointerDown);
-    };
+    return () => window.removeEventListener('pointerdown', handlePointerDown);
   }, [highlightedSongKey]);
 
   const onSubmit = ({ query }: HomeSearchSchema) => {
     const normalizedQuery = query.trim();
-
     if (normalizedQuery.length === 0) {
       setSearchParams({});
       return;
     }
-
     setSearchParams({ q: normalizedQuery });
   };
 
   return (
-    <section
-      className={`mx-auto flex w-full max-w-screen-xl flex-col items-center px-8 transition-all duration-500 ease-in-out ${
-        searchQuery ? 'pt-8 pb-20 md:pb-12' : 'justify-center min-h-[calc(100dvh-180px)] pt-24 pb-20'
-      }`}
-    >
-      <AnimatePresence>
-        {!searchQuery && (
-          <motion.h1
-            initial={{ opacity: 0, y: 16, filter: 'blur(8px)' }}
-            animate={{ opacity: 1, y: 0, height: 'auto', filter: 'blur(0px)' }}
-            exit={{ opacity: 0, y: -20, height: 0, filter: 'blur(4px)', margin: 0 }}
-            transition={{ duration: 0.45 }}
-            className='mb-8 max-w-4xl text-4xl font-black leading-tight tracking-tighter text-white md:text-7xl text-center'
-          >
-            Que música você gostaria de aprender hoje?
-          </motion.h1>
-        )}
-      </AnimatePresence>
+    <>
+      {/* Decorative Blobs */}
+      <div className="fixed top-[-10%] right-[-5%] w-[400px] h-[400px] bg-primary/10 blur-[120px] rounded-full pointer-events-none -z-10"></div>
+      <div className="fixed bottom-[10%] left-[-10%] w-[500px] h-[500px] bg-secondary/5 blur-[150px] rounded-full pointer-events-none -z-10"></div>
 
-      <motion.form 
-        layout
-        onSubmit={handleSubmit(onSubmit)} 
-        className='w-full max-w-2xl mt-0'
-      >
-        <div className='group relative'>
-          <button 
-            type="submit" 
-            className='absolute inset-y-0 left-6 flex items-center text-on-surface-variant transition-colors group-focus-within:text-secondary hover:text-primary z-10'
-          >
-            <Search size={20} />
-          </button>
-          <input
-            type='text'
-            placeholder='Escreva o título, artista ou letra'
-            className='w-full rounded-full border-none bg-surface-container-high py-5 pl-16 pr-8 text-lg text-white placeholder:text-on-surface-variant transition-all focus:ring-2 focus:ring-secondary/50 focus:outline-none'
-            aria-label='Campo de busca de música'
-            {...register('query')}
-          />
-        </div>
-      </motion.form>
+      <main className="relative z-10 pt-12 md:pt-16 pb-8 px-4 md:px-6 max-w-5xl mx-auto flex flex-col items-center">
+        <motion.div
+          initial={{ opacity: 0, y: 16, filter: 'blur(8px)' }}
+          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          transition={{ duration: 0.45 }}
+          className="text-center w-full"
+        >
+          <h1 className="text-4xl md:text-6xl font-extrabold tracking-tighter text-on-surface mb-4">
+            Letter <span className="text-primary italic">Music</span>
+          </h1>
+          <AnimatePresence>
+            {!searchQuery && (
+              <motion.p
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10, height: 0, marginBottom: 0 }}
+                transition={{ duration: 0.3 }}
+                className="text-on-surface-variant text-base md:text-lg font-medium max-w-xl mx-auto mb-6"
+              >
+                Master any language through the pulse of rhythm and lyrics.
+              </motion.p>
+            )}
+          </AnimatePresence>
+        </motion.div>
 
-      {errors.query && <p className='mt-3 text-sm text-error'>{errors.query.message}</p>}
+        <motion.form
+          layout
+          onSubmit={handleSubmit(onSubmit)}
+          className={`w-full relative group max-w-3xl ${searchQuery ? 'mt-2' : 'mt-1'}`}
+        >
+           {/* Added inset background layer for style */}
+          <div className="absolute -inset-1 bg-gradient-to-r from-primary to-secondary opacity-20 group-focus-within:opacity-40 blur-xl transition duration-500 rounded-full"></div>
+          <div className="relative flex items-center bg-surface-container border border-outline-variant/30 rounded-2xl md:rounded-full px-5 py-4 shadow-2xl focus-within:border-primary transition-all duration-300">
+            <button type="submit" className="material-symbols-outlined text-primary-fixed mr-3 scale-125 focus:outline-none focus:scale-110 active:scale-95 transition-transform cursor-pointer">search</button>
+            <input
+              className="bg-transparent border-none focus:ring-0 w-full text-lg md:text-xl font-medium placeholder:text-on-surface-variant/40 outline-none text-on-surface"
+              placeholder="Search for a song, artist, or language..."
+              type="text"
+              autoComplete="off"
+              spellCheck="false"
+              {...register('query')}
+            />
+          </div>
+        </motion.form>
 
-      {searchQuery && (
-        <motion.div 
+        {errors.query && <p className="mt-3 text-sm text-error">{String(errors.query.message)}</p>}
+      </main>
+
+      {searchQuery ? (
+        <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="w-full max-w-4xl mt-4"
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="max-w-6xl mx-auto px-4 md:px-6 pb-32 w-full"
         >
-          <SearchResults 
+          <SearchResults
             data={data}
             isLoading={isLoading}
             isFetchingNextPage={isFetchingNextPage}
@@ -149,8 +140,8 @@ export default function HomePage() {
             searchQuery={searchQuery}
             highlightedSongKey={highlightedSongKey}
           />
-        </motion.div>
-      )}
-    </section>
+        </motion.section>
+      ) : null}
+    </>
   );
 }

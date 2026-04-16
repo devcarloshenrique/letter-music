@@ -4,8 +4,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { FooterPlayer } from '../../features/lyrics/components/footer-player';
 import { GlobalLyricsPlayerHost } from '../../features/lyrics/components/global-lyrics-player-host';
 import { useLyricsPlayerContext } from '../../features/lyrics/context/lyrics-player-context';
-import { BottomNav } from '../../shared/components/layout/bottom-nav';
-import { Navbar } from '../../shared/components/layout/navbar';
 import { SettingsAuthModal } from '../../shared/components/layout/settings-auth-modal';
 
 export function RootLayout({ children }: PropsWithChildren) {
@@ -71,15 +69,6 @@ export function RootLayout({ children }: PropsWithChildren) {
     };
   }, [shouldLockViewport]);
 
-  const handleOpenSettings = () => {
-    if (closeTimeoutRef.current) {
-      window.clearTimeout(closeTimeoutRef.current);
-      closeTimeoutRef.current = null;
-    }
-
-    setIsClosingTransition(false);
-    setIsSettingsOpen(true);
-  };
 
   const handleCloseSettings = () => {
     setIsSettingsOpen(false);
@@ -94,7 +83,6 @@ export function RootLayout({ children }: PropsWithChildren) {
   return (
     <div className="relative min-h-screen w-full overflow-x-hidden bg-background text-on-surface">
       <GlobalLyricsPlayerHost />
-      {!isWorkspace && <Navbar onOpenSettings={handleOpenSettings} />}
       <div
         className={`relative z-0 transition-all duration-700 ${
           shouldLockViewport ? 'scale-105 select-none blur-[40px]' : ''
@@ -102,13 +90,12 @@ export function RootLayout({ children }: PropsWithChildren) {
       >
         <main
           className={`dot-grid min-h-screen w-full overflow-x-hidden overflow-y-auto ${
-            !isWorkspace ? 'pt-[76px] pb-28 md:pb-8' : ''
+            !isWorkspace ? 'pt-8 pb-28 md:pb-8' : ''
           }`}
         >
           {children}
         </main>
       </div>
-      {!isWorkspace && <BottomNav />}
       <SettingsAuthModal isOpen={isSettingsOpen} onClose={handleCloseSettings} />
       {shouldShowGlobalFooterPlayer && nowPlaying && (
         <FooterPlayer
