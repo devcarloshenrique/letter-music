@@ -1,34 +1,81 @@
 import YouTube from 'react-youtube';
+import { useEffect, useRef } from 'react';
 import { useLyricsPlayerContext } from '../context/lyrics-player-context';
 
 type GlobalLyricsPlayerHostProps = {
-  mode?: 'hidden' | 'panel';
+  mode?: 'hidden' | 'panel' | 'workspace-docked';
 };
+
+const WORKSPACE_VIDEO_SLOT_ID = 'lyrics-sidebar-video-slot';
 
 export function GlobalLyricsPlayerHost({ mode = 'hidden' }: GlobalLyricsPlayerHostProps) {
   const { nowPlaying, handlePlayerReady, handlePlayerStateChange } = useLyricsPlayerContext();
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (mode !== 'workspace-docked') {
+      if (wrapperRef.current) {
+        wrapperRef.current.style.cssText = '';
+      }
+      return;
+    }
+
+    let frameId: number;
+
+    const syncPosition = () => {
+      const slot = document.getElementById(WORKSPACE_VIDEO_SLOT_ID);
+      const wrapper = wrapperRef.current;
+      
+      if (slot && wrapper) {
+        const rect = slot.getBoundingClientRect();
+        
+        // Hide if outside viewport
+        if (rect.width === 0 || rect.height === 0 || rect.left >= window.innerWidth || rect.right <= 0) {
+          wrapper.style.opacity = '0';
+          wrapper.style.pointerEvents = 'none';
+        } else {
+          wrapper.style.position = 'fixed';
+          wrapper.style.top = `${rect.top}px`;
+          wrapper.style.left = `${rect.left}px`;
+          wrapper.style.width = `${rect.width}px`;
+          wrapper.style.height = `${rect.height}px`;
+          wrapper.style.zIndex = '50';
+          wrapper.style.opacity = '1';
+          wrapper.style.pointerEvents = 'auto';
+          wrapper.style.borderRadius = '16px'; // matching rounded-2xl
+        }
+      }
+      
+      frameId = requestAnimationFrame(syncPosition);
+    };
+
+    frameId = requestAnimationFrame(syncPosition);
+
+    return () => cancelAnimationFrame(frameId);
+  }, [mode, nowPlaying?.videoId]);
 
   if (!nowPlaying?.videoId) {
     return null;
   }
 
-  const isPanelMode = mode === 'panel';
+  const isVisibleMode = mode === 'panel' || mode === 'workspace-docked';
 
   return (
     <div
+      ref={wrapperRef}
       className={
-        isPanelMode
-          ? 'aspect-video w-full overflow-hidden bg-surface-high'
+        isVisibleMode
+          ? 'overflow-hidden z-[50]'
           : 'pointer-events-none fixed -bottom-20 -right-20 z-[-1] h-1 w-1 overflow-hidden opacity-0'
       }
-      aria-hidden={isPanelMode ? undefined : 'true'}
+      aria-hidden={!isVisibleMode ? 'true' : undefined}
     >
       <YouTube
         key={nowPlaying.videoId}
         videoId={nowPlaying.videoId}
         opts={{
-          width: isPanelMode ? '100%' : '1',
-          height: isPanelMode ? '100%' : '1',
+          width: '100%',
+          height: '100%',
           playerVars: {
             rel: 0,
             modestbranding: 1,
@@ -36,7 +83,7 @@ export function GlobalLyricsPlayerHost({ mode = 'hidden' }: GlobalLyricsPlayerHo
           }
         }}
         className={
-          isPanelMode
+          isVisibleMode
             ? 'h-full w-full [&>iframe]:h-full [&>iframe]:w-full'
             : 'h-1 w-1 [&>iframe]:h-1 [&>iframe]:w-1'
         }

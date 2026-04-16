@@ -82,7 +82,7 @@ export function RootLayout({ children }: PropsWithChildren) {
 
   return (
     <div className="relative min-h-screen w-full overflow-x-hidden bg-background text-on-surface">
-      <GlobalLyricsPlayerHost />
+      <GlobalLyricsPlayerHost mode={isWorkspace ? 'workspace-docked' : 'hidden'} />
       <div
         className={`relative z-0 transition-all duration-700 ${
           shouldLockViewport ? 'scale-105 select-none blur-[40px]' : ''

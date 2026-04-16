@@ -224,6 +224,7 @@ export default function LyricsWorkspacePage() {
         >
           <LyricsControlPanel
             videoId={videoId}
+            videoSlotId='lyrics-sidebar-video-slot'
             playbackRate={playbackRate}
             volume={volume}
             playbackSpeeds={playbackSpeeds}

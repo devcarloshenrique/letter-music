@@ -1,9 +1,8 @@
 import { Keyboard, Repeat, Volume2, X } from 'lucide-react';
-import { GlobalLyricsPlayerHost } from './global-lyrics-player-host';
 
 type LyricsControlPanelProps = {
   videoId: string | null;
-  showLiveVideo?: boolean;
+  videoSlotId?: string;
   playbackRate: number;
   volume: number;
   playbackSpeeds: readonly number[];
@@ -17,7 +16,7 @@ type LyricsControlPanelProps = {
 
 export function LyricsControlPanel({
   videoId,
-  showLiveVideo = false,
+  videoSlotId,
   playbackRate,
   volume,
   playbackSpeeds,
@@ -29,7 +28,7 @@ export function LyricsControlPanel({
   onMute
 }: LyricsControlPanelProps) {
   return (
-    <aside className='flex h-full w-full flex-col gap-6 bg-surface p-6 md:overflow-y-auto md:p-8'>
+    <aside className='flex h-full min-h-0 w-full flex-col gap-6 overflow-y-auto bg-surface p-6 md:p-8'>
       <div className='flex items-center justify-between'>
         <p className='text-label text-on-surface-variant'>Painel de Controle</p>
         {onClose && (
@@ -44,10 +43,14 @@ export function LyricsControlPanel({
         )}
       </div>
 
-      <div className='glass-surface overflow-hidden rounded-2xl'>
+      <div className='glass-surface shrink-0 overflow-hidden rounded-2xl'>
         {videoId ? (
-          showLiveVideo ? (
-            <GlobalLyricsPlayerHost mode='panel' />
+          videoSlotId ? (
+            <div
+              id={videoSlotId}
+              className='aspect-video bg-surface-high bg-cover bg-center'
+              style={{ backgroundImage: `url(https://img.youtube.com/vi/${videoId}/hqdefault.jpg)` }}
+            />
           ) : (
             <div className='aspect-video bg-surface-high'>
               <img

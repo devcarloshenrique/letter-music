@@ -1,5 +1,9 @@
 # React + TypeScript + Vite
 
+## Sonic Lingua Notes
+
+- Global lyrics playback persistence and docked video behavior are documented in `docs/lyrics-player-persistence.md`.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
