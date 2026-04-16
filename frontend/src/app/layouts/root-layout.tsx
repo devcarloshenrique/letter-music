@@ -37,6 +37,14 @@ export function RootLayout({ children }: PropsWithChildren) {
   const shouldShowGlobalFooterPlayer = !isWorkspace && Boolean(nowPlaying?.videoId);
 
   useEffect(() => {
+    import('../../shared/lib/auth-events').then(({ authEvents }) => {
+      authEvents.on401(() => {
+        setIsSettingsOpen(true);
+      });
+    });
+  }, []);
+
+  useEffect(() => {
     return () => {
       if (closeTimeoutRef.current) {
         window.clearTimeout(closeTimeoutRef.current);

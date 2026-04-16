@@ -30,8 +30,8 @@ app.get('/health', (_req, res) => {
   });
 });
 
-app.post('/api/auth/login', loginController.handle);
-app.get('/api/lyrics', getLyricsController.handle);
-app.get('/api/lyrics/synced', getSyncedLyricsController.handle);
+app.post('/api/auth/connect-letras', loginController.handle.bind(loginController));
+app.get('/api/lyrics', getLyricsController.handle.bind(getLyricsController));
+app.get('/api/lyrics/synced', getSyncedLyricsController.handle.bind(getSyncedLyricsController));
 
 app.use(errorHandler);

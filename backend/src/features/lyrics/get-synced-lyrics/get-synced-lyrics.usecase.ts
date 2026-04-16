@@ -1,5 +1,5 @@
 import { load } from 'cheerio';
-import { AppError } from '../../../shared/errors/app-error';
+import { AppError, AuthSessionExpiredError } from '../../../shared/errors/app-error';
 import {
   ACCOUNTS_CIFRACLUB_BASE_URL,
   ACCOUNTS_GRAPHQL_URL,
@@ -412,7 +412,7 @@ export class GetSyncedLyricsUseCase {
     ];
 
     if (cookies.length === 0) {
-      throw new AppError('Sessão não autenticada. Realize login antes de consultar legendas.', 401);
+      throw new AuthSessionExpiredError('Sessão não autenticada. Realize login antes de consultar legendas.');
     }
 
     const sessionCheckResponse = await this.httpClient.postJson<SessionCheckResponse>(
@@ -433,7 +433,7 @@ export class GetSyncedLyricsUseCase {
 
     const isSessionValid = sessionCheckResponse.data.data?.viewer?.isSessionValid;
     if (!isSessionValid) {
-      throw new AppError('Sessão expirada ou usuário não autenticado.', 401);
+      throw new AuthSessionExpiredError('Sessão expirada ou usuário não autenticado.');
     }
 
     const response = await this.httpClient.get<string>(syncedLyricsUrl.toString(), {
@@ -456,9 +456,8 @@ export class GetSyncedLyricsUseCase {
 
     const html = String(response.data ?? '');
     if (isLoginPage(html)) {
-      throw new AppError('Sessão expirada ou usuário não autenticado.', 401);
+      throw new AuthSessionExpiredError('Sessão expirada ou usuário não autenticado.');
     }
-
     const $ = load(html);
     const hidden = readHiddenMeta($);
     const videoUrl = hidden?.video_id ? `https://www.youtube.com/watch?v=${hidden.video_id}` : undefined;

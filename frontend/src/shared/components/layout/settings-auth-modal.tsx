@@ -47,6 +47,11 @@ function getErrorMessage(error: unknown): string {
 export function SettingsAuthModal({ isOpen, onClose }: SettingsAuthModalProps) {
 	const [showPassword, setShowPassword] = useState(false);
 
+	const handleCloseAndAbort = () => {
+		window.dispatchEvent(new CustomEvent('auth:login-error'));
+		onClose();
+	};
+
 	const {
 		register,
 		handleSubmit,
@@ -62,12 +67,21 @@ export function SettingsAuthModal({ isOpen, onClose }: SettingsAuthModalProps) {
 
 	const loginMutation = useMutation({
 		mutationFn: async (payload: LoginForm) => {
-			const response = await apiClient.post<LoginSuccessResponse>('/api/auth/login', {
-				email: payload.login,
-				password: payload.password
-			});
+const response = await apiClient.post<LoginSuccessResponse>('/api/auth/connect-letras', {
+        email: payload.login,
+        password: payload.password
+      });
 
-			return response.data;
+      return response.data;
+    },
+    onSuccess: () => {
+      // Notifica o restante da aplicação que logou
+      window.dispatchEvent(new CustomEvent('auth:login-success'));
+      
+      // Fecha localmente após 1 segundo
+      setTimeout(() => {
+        onClose();
+      }, 1000);
 		}
 	});
 
@@ -81,7 +95,7 @@ export function SettingsAuthModal({ isOpen, onClose }: SettingsAuthModalProps) {
 
 	return (
 		<div className='fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8'>
-			<div className='absolute inset-0 bg-black/40' aria-hidden='true' onClick={onClose} />
+			<div className='absolute inset-0 bg-black/40' aria-hidden='true' onClick={handleCloseAndAbort} />
 
 			<div className='relative w-full max-w-md overflow-hidden rounded-[2.5rem] border border-primary/25 bg-[rgba(15,14,17,0.4)] shadow-[0_0_60px_rgba(219,144,255,0.15)] backdrop-blur-[40px]'>
 				<div className='flex items-center justify-between px-10 pb-4 pt-10'>
@@ -89,7 +103,7 @@ export function SettingsAuthModal({ isOpen, onClose }: SettingsAuthModalProps) {
 					<button
 						type='button'
 						aria-label='Fechar'
-						onClick={onClose}
+						onClick={handleCloseAndAbort}
 						className='flex h-10 w-10 items-center justify-center rounded-full bg-white/5 text-on-surface-variant transition-colors hover:bg-white/10'
 					>
 						<X size={20} />
@@ -179,7 +193,7 @@ export function SettingsAuthModal({ isOpen, onClose }: SettingsAuthModalProps) {
 						</button>
 						<button
 							type='button'
-							onClick={onClose}
+							onClick={handleCloseAndAbort}
 							className='mt-6 text-[11px] font-black uppercase tracking-[0.3em] text-on-surface/50 transition-colors hover:text-white'
 						>
 							CANCEL

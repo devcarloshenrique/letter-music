@@ -1,5 +1,5 @@
 export const loginPathSpec = {
-  '/api/auth/login': {
+  '/api/auth/connect-letras': {
     post: {
       tags: ['Auth'],
       summary: 'Realiza login programático no Letras',
@@ -42,7 +42,7 @@ export const loginPathSpec = {
                     type: 'object',
                     properties: {
                       timestamp: { type: 'string', format: 'date-time' },
-                      path: { type: 'string', example: '/api/auth/login' }
+                      path: { type: 'string', example: '/api/auth/connect-letras' }
                     },
                     required: ['timestamp', 'path']
                   }
