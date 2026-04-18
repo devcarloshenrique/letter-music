@@ -2,7 +2,10 @@ import { motion } from 'framer-motion';
 import type { SearchLyricsSuccessResponse } from '../types/home.types';
 import { useInfiniteScroll } from '../../../shared/hooks/use-infinite-scroll';
 import type { InfiniteData } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
+import type { SyncedLyricsData } from '../types/home.types';
+import { homeService } from '../services/home.service';
 
 interface SearchResultsProps {
   data: InfiniteData<SearchLyricsSuccessResponse> | undefined;
@@ -27,6 +30,7 @@ export function SearchResults({
 }: SearchResultsProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
 
   const { observerTarget } = useInfiniteScroll({
     isFetchingNextPage,
@@ -36,6 +40,15 @@ export function SearchResults({
   });
 
   const allSongs = data?.pages.flatMap((page) => page.data) || [];
+
+  const prefetchSyncedLyrics = (songUrl: string) => {
+    void queryClient.prefetchQuery({
+      queryKey: ['synced-lyrics', songUrl],
+      queryFn: () => homeService.fetchSyncedLyrics(songUrl),
+      staleTime: 60_000
+    });
+  };
+
   const persistLastSelectedSong = (songUrl: string) => {
     const songKey = encodeURIComponent(songUrl);
     sessionStorage.setItem('home:last-selected-song-key', songKey);
@@ -88,15 +101,24 @@ export function SearchResults({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.18 }}
+            onMouseEnter={() => {
+              prefetchSyncedLyrics(song.url);
+            }}
+            onFocus={() => {
+              prefetchSyncedLyrics(song.url);
+            }}
             onClick={() => {
               const fullTitle = song.title.split(' - ')[0];
               const author = song.title.split(' - ')[1] || song.description || 'Unknown Artist';
+              const prefetched = queryClient.getQueryData<SyncedLyricsData>(['synced-lyrics', song.url]);
+
               navigate(`/lyrics?url=${encodeURIComponent(song.url)}`, {
                 state: {
                   from: `${location.pathname}${location.search}`,
                   selectedSongKey: persistLastSelectedSong(song.url),
                   songTitle: fullTitle.trim(),
-                  artistName: author.trim()
+                  artistName: author.trim(),
+                  prefetchedVideoUrl: prefetched?.video_url
                 }
               });
             }}

@@ -129,14 +129,20 @@ export function RootLayout({ children }: PropsWithChildren) {
           onToggleKaraokeMode={() => {
             navigate(`/lyrics?url=${encodeURIComponent(nowPlaying.queryUrl)}`, {
               state: {
-                from: `${location.pathname}${location.search}`
+                from: `${location.pathname}${location.search}`,
+                songTitle: nowPlaying.songTitle,
+                artistName: nowPlaying.artistName,
+                initialVideoId: nowPlaying.videoId
               }
             });
           }}
           onOpenLyrics={() => {
             navigate(`/lyrics?url=${encodeURIComponent(nowPlaying.queryUrl)}`, {
               state: {
-                from: `${location.pathname}${location.search}`
+                from: `${location.pathname}${location.search}`,
+                songTitle: nowPlaying.songTitle,
+                artistName: nowPlaying.artistName,
+                initialVideoId: nowPlaying.videoId
               }
             });
           }}

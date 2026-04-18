@@ -27,7 +27,13 @@ export default function LyricsWorkspacePage() {
   const [isAutoFollowEnabled, setIsAutoFollowEnabled] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
-  const locationState = location.state as { from?: string; songTitle?: string; artistName?: string } | null;
+  const locationState = location.state as {
+    from?: string;
+    songTitle?: string;
+    artistName?: string;
+    prefetchedVideoUrl?: string;
+    initialVideoId?: string;
+  } | null;
   const from = locationState?.from;
   const passedSongTitle = locationState?.songTitle;
   const passedArtistName = locationState?.artistName;
@@ -35,7 +41,8 @@ export default function LyricsWorkspacePage() {
   const syncedLyricsQuery = useQuery({
     queryKey: ['synced-lyrics', queryUrl],
     queryFn: () => homeService.fetchSyncedLyrics(queryUrl),
-    enabled: queryUrl.length > 0
+    enabled: queryUrl.length > 0,
+    staleTime: 60_000
   });
 
   const lines = syncedLyricsQuery.data?.lines ?? [];
@@ -43,6 +50,7 @@ export default function LyricsWorkspacePage() {
 
   const {
     setNowPlaying,
+    requestAutoplayOnReady,
     activeLineIndex,
     currentTime,
     duration,
@@ -114,7 +122,11 @@ export default function LyricsWorkspacePage() {
     }
   }, [activeLineIndex, isAutoFollowEnabled, loopIndices.length, viewMode]);
 
-  const videoId = extractYouTubeVideoId(syncedLyricsQuery.data?.video_url);
+  const videoId =
+    extractYouTubeVideoId(syncedLyricsQuery.data?.video_url) ??
+    extractYouTubeVideoId(locationState?.prefetchedVideoUrl) ??
+    locationState?.initialVideoId ??
+    null;
 
   // Extract song metadata from URL
   const { songTitle, artistName } = useMemo(() => {
@@ -141,6 +153,8 @@ export default function LyricsWorkspacePage() {
       return;
     }
 
+    requestAutoplayOnReady();
+
     setNowPlaying({
       queryUrl,
       videoId,
@@ -148,7 +162,7 @@ export default function LyricsWorkspacePage() {
       artistName,
       thumbnail
     });
-  }, [artistName, queryUrl, setNowPlaying, songTitle, thumbnail, videoId]);
+  }, [artistName, queryUrl, requestAutoplayOnReady, setNowPlaying, songTitle, thumbnail, videoId]);
 
   const handleBack = useCallback(() => {
     const currentRoute = `${location.pathname}${location.search}`;

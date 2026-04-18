@@ -26,13 +26,25 @@ export function GlobalLyricsPlayerHost({ mode = 'hidden' }: GlobalLyricsPlayerHo
       const slot = document.getElementById(WORKSPACE_VIDEO_SLOT_ID);
       const wrapper = wrapperRef.current;
       
-      if (slot && wrapper) {
+      if (!wrapper) {
+        frameId = requestAnimationFrame(syncPosition);
+        return;
+      }
+
+      if (!slot) {
+        wrapper.style.opacity = '0';
+        wrapper.style.pointerEvents = 'none';
+        wrapper.style.position = 'fixed';
+        wrapper.style.top = '-9999px';
+      } else {
         const rect = slot.getBoundingClientRect();
         
         // Hide if outside viewport
         if (rect.width === 0 || rect.height === 0 || rect.left >= window.innerWidth || rect.right <= 0) {
           wrapper.style.opacity = '0';
           wrapper.style.pointerEvents = 'none';
+          wrapper.style.position = 'fixed';
+          wrapper.style.top = '-9999px';
         } else {
           wrapper.style.position = 'fixed';
           wrapper.style.top = `${rect.top}px`;
@@ -65,7 +77,7 @@ export function GlobalLyricsPlayerHost({ mode = 'hidden' }: GlobalLyricsPlayerHo
       ref={wrapperRef}
       className={
         isVisibleMode
-          ? 'overflow-hidden z-[50]'
+          ? 'fixed -top-[9999px] overflow-hidden z-[50] opacity-0 pointer-events-none'
           : 'pointer-events-none fixed -bottom-20 -right-20 z-[-1] h-1 w-1 overflow-hidden opacity-0'
       }
       aria-hidden={!isVisibleMode ? 'true' : undefined}
@@ -79,7 +91,9 @@ export function GlobalLyricsPlayerHost({ mode = 'hidden' }: GlobalLyricsPlayerHo
           playerVars: {
             rel: 0,
             modestbranding: 1,
-            playsinline: 1
+            playsinline: 1,
+            autoplay: 1,
+            iv_load_policy: 3
           }
         }}
         className={

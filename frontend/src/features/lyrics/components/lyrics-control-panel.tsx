@@ -43,16 +43,11 @@ export function LyricsControlPanel({
           videoSlotId ? (
             <div
               id={videoSlotId}
-              className='aspect-video bg-cover bg-center border-none'
-              style={{ backgroundImage: `url(https://img.youtube.com/vi/${videoId}/hqdefault.jpg)` }}
+              className='aspect-video border-none bg-surface-high/40'
             />
           ) : (
-            <div className='aspect-video'>
-              <img
-                src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
-                alt='Capa do video atual'
-                className='h-full w-full object-cover border-none'
-              />
+            <div className='flex aspect-video items-center justify-center border-none text-sm text-on-surface-variant'>
+              Player ativo
             </div>
           )
         ) : (

@@ -49,6 +49,7 @@ type LyricsPlayerContextValue = {
   toggleLoop: () => void;
   handlePlayerReady: (event: { target: unknown }) => void;
   handlePlayerStateChange: (event: { data: number }) => void;
+  requestAutoplayOnReady: () => void;
   setLyricsLines: (nextLines: SyncedLine[]) => void;
   setNowPlaying: (track: NowPlaying) => void;
   clearNowPlaying: () => void;
@@ -59,6 +60,7 @@ const LyricsPlayerContext = createContext<LyricsPlayerContextValue | null>(null)
 export function LyricsPlayerProvider({ children }: PropsWithChildren) {
   const playerRef = useRef<PlayerLike | null>(null);
   const nowPlayingRef = useRef<NowPlaying | null>(null);
+  const autoplayOnReadyRef = useRef(false);
   const [lines, setLines] = useState<SyncedLine[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -198,7 +200,8 @@ export function LyricsPlayerProvider({ children }: PropsWithChildren) {
         playerRef.current.seekTo(currentTime, true);
       }
 
-      if (isPlaying) {
+      if (isPlaying || autoplayOnReadyRef.current) {
+        autoplayOnReadyRef.current = false;
         playerRef.current.playVideo();
       }
 
@@ -213,6 +216,10 @@ export function LyricsPlayerProvider({ children }: PropsWithChildren) {
 
   const setLyricsLines = useCallback((nextLines: SyncedLine[]) => {
     setLines(nextLines);
+  }, []);
+
+  const requestAutoplayOnReady = useCallback(() => {
+    autoplayOnReadyRef.current = true;
   }, []);
 
   const clearNowPlaying = useCallback(() => {
@@ -371,6 +378,7 @@ export function LyricsPlayerProvider({ children }: PropsWithChildren) {
       toggleLoop,
       handlePlayerReady,
       handlePlayerStateChange,
+      requestAutoplayOnReady,
       setLyricsLines,
       setNowPlaying,
       clearNowPlaying
@@ -398,6 +406,7 @@ export function LyricsPlayerProvider({ children }: PropsWithChildren) {
       toggleLoop,
       handlePlayerReady,
       handlePlayerStateChange,
+      requestAutoplayOnReady,
       setLyricsLines,
       setNowPlaying,
       clearNowPlaying
