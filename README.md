@@ -1,6 +1,6 @@
-# 🎵 Sonic Língua (Letter Music)
+# 🎵 Letter Music
 
-Sonic Língua é uma aplicação full-stack que ajuda no aprendizado de idiomas interativamente usando música e letras sincronizadas.
+Letter Music é uma aplicação full-stack que ajuda no aprendizado de idiomas interativamente usando música e letras sincronizadas.
 
 O projeto é dividido em duas partes principais: um **Backend** robusto em Node.js usando **Vertical Slice Architecture** e um **Frontend** moderno usando **React, Vite e Feature-Driven Architecture**, aderindo a um Design System premium "Neon Dark".
 
