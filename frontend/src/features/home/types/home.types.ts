@@ -25,25 +25,30 @@ export type ApiErrorResponse = {
 };
 
 export type SearchLyricsSong = {
+  id: string;
   title: string;
-  description: string;
+  artist: string;
+  preview: string;
   url: string;
 };
 
-export type SearchLyricsMetadata = {
-  page: number;
-  pageSize: number;
-  totalPages: number;
-  totalResults?: number | null;
-  hasMore?: boolean;
-  isEstimated?: boolean;
-  timestamp?: string;
-  path?: string;
+export type SearchLyricsPagination = {
+  current: number;
+  count: number;
+  next: number | null;
+  prev: number | null;
+  hasMore: boolean;
+};
+
+export type SearchLyricsRequestInfo = {
+  query: string;
+  timestamp: string;
 };
 
 export type SearchLyricsSuccessResponse = {
   success: true;
   message: string;
-  data: SearchLyricsSong[];
-  metadata: SearchLyricsMetadata;
+  request: SearchLyricsRequestInfo;
+  results: SearchLyricsSong[];
+  pagination: SearchLyricsPagination;
 };

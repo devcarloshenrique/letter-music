@@ -1,6 +1,5 @@
 import { AppError } from '../../../shared/errors/app-error';
-import { cookiePersistence } from '../../../server';
-import { letrasCookieJar } from '../../../shared/infra/http/letras-session';
+import { cookiePersistence, letrasCookieJar } from '../../../shared/infra/http/letras-session';    
 import {
   ACCOUNTS_LETRAS_BASE_URL,
   ACCOUNTS_CIFRACLUB_BASE_URL,

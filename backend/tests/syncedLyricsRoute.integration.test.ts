@@ -151,7 +151,7 @@ describe('GET /api/lyrics/synced (integration)', () => {
 
     expect(response.status).toBe(401);
     expect(response.body.success).toBe(false);
-    expect(response.body.error.code).toBe('APP_ERROR');
+    expect(response.body.error.code).toBe('AUTH_SESSION_EXPIRED');
     expect(response.body.error.message).toContain('Sessão não autenticada');
   });
 });

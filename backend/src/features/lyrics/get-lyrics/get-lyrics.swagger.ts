@@ -18,11 +18,10 @@ export const getLyricsPathSpec = {
           name: 'page',
           in: 'query',
           required: false,
-          description: 'Página da busca entre 1 e 10',
+          description: 'Página da busca (inteiro maior ou igual a 1)',
           schema: {
             type: 'integer',
             minimum: 1,
-            maximum: 10,
             default: 1
           }
         }

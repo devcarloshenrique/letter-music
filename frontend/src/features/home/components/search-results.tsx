@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import type { InfiniteData } from '@tanstack/react-query';
 import type { SearchLyricsSuccessResponse } from '../types/home.types';
 import { useInfiniteScroll } from '../../../shared/hooks/use-infinite-scroll';
-import type { InfiniteData } from '@tanstack/react-query';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { SyncedLyricsData } from '../types/home.types';
@@ -32,14 +33,21 @@ export function SearchResults({
   const location = useLocation();
   const queryClient = useQueryClient();
 
+  const [scrollThreshold, setScrollThreshold] = useState(30);
+
+  useEffect(() => {
+    setScrollThreshold(30);
+  }, [searchQuery]);
+
+  const allSongs = data?.pages.flatMap((page) => page.results) || [];
+  const isAutoFetchBlocked = allSongs.length >= scrollThreshold;
+
   const { observerTarget } = useInfiniteScroll({
     isFetchingNextPage,
-    hasNextPage: hasNextPage && !isFetchNextPageError,
+    hasNextPage: hasNextPage && !isFetchNextPageError && !isAutoFetchBlocked,
     fetchNextPage,
     rootMargin: '200px'
   });
-
-  const allSongs = data?.pages.flatMap((page) => page.data) || [];
 
   const prefetchSyncedLyrics = (songUrl: string) => {
     void queryClient.prefetchQuery({
@@ -89,14 +97,14 @@ export function SearchResults({
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xs font-bold tracking-[0.2em] uppercase text-on-surface-variant">Results for "{searchQuery}"</h2>
         <div className="flex gap-2 text-primary font-bold text-sm">
-          {data?.pages[0]?.metadata?.totalResults || allSongs.length} found
+          {allSongs.length} found
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
         {allSongs.map((song, index) => (
           <motion.div
-            key={`${song.url}-${index}`}
+            key={`${song.id || song.url}-${index}`}
             data-song-key={encodeURIComponent(song.url)}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -108,16 +116,16 @@ export function SearchResults({
               prefetchSyncedLyrics(song.url);
             }}
             onClick={() => {
-              const fullTitle = song.title.split(' - ')[0];
-              const author = song.title.split(' - ')[1] || song.description || 'Unknown Artist';
+              const fullTitle = song.title;
+              const author = song.artist || 'Unknown Artist';
               const prefetched = queryClient.getQueryData<SyncedLyricsData>(['synced-lyrics', song.url]);
 
               navigate(`/lyrics?url=${encodeURIComponent(song.url)}`, {
                 state: {
                   from: `${location.pathname}${location.search}`,
                   selectedSongKey: persistLastSelectedSong(song.url),
-                  songTitle: fullTitle.trim(),
-                  artistName: author.trim(),
+                  songTitle: fullTitle,
+                  artistName: author,
                   prefetchedVideoUrl: prefetched?.video_url
                 }
               });
@@ -130,10 +138,10 @@ export function SearchResults({
           >
             <div className="min-w-0">
               <h3 className="text-base font-bold text-on-surface group-hover:text-primary transition-colors line-clamp-2">
-                {song.title.split(' - ')[0]}
+                {song.title}
               </h3>
               <p className="text-on-surface-variant text-sm font-medium mt-1 line-clamp-2">
-                {song.title.split(' - ')[1] || song.description || 'Unknown Artist'}
+                {song.artist || 'Unknown Artist'}
               </p>
             </div>
             <button className="w-9 h-9 rounded-lg bg-surface-container-highest flex items-center justify-center group-hover:bg-primary group-hover:text-on-primary transition-colors shrink-0">
@@ -143,7 +151,20 @@ export function SearchResults({
         ))}
       </div>
 
-      <div ref={observerTarget} className="w-full h-14 flex items-center justify-center mt-2">
+      <div ref={observerTarget} className="w-full min-h-14 flex flex-col items-center justify-center mt-6 gap-4">
+        {isAutoFetchBlocked && hasNextPage && !isFetchingNextPage && !isFetchNextPageError && (
+          <button
+            type="button"
+            onClick={() => {
+              setScrollThreshold(prev => prev + 12);
+              void fetchNextPage();
+            }}
+            className="rounded-full bg-primary/10 px-8 py-3 text-sm font-bold text-primary hover:bg-primary/20 transition-colors"
+          >
+            Carregar mais
+          </button>
+        )}
+        
         {isFetchNextPageError && (
           <button
             type="button"

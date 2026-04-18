@@ -9,7 +9,6 @@ import type { GetLyricsInputDto, GetLyricsOutputDto, GetLyricsSongDto } from './
 const ALLOWED_HOSTS = new Set(['www.letras.mus.br', 'letras.mus.br']);
 const BLOCKED_PATH_MARKERS = ['/significado', '/aprenda-ingles'];
 const MIN_PAGE = 1;
-const MAX_PAGE = 10;
 const PAGE_SIZE = 10;
 
 export class GetLyricsUseCase {
@@ -58,11 +57,11 @@ export class GetLyricsUseCase {
     }
 
     if (!Number.isInteger(rawPage)) {
-      throw new AppError('Parâmetro "page" precisa ser um número inteiro entre 1 e 10.', 400);
+      throw new AppError('Parâmetro "page" precisa ser um número inteiro maior ou igual a 1.', 400);
     }
 
-    if (rawPage < MIN_PAGE || rawPage > MAX_PAGE) {
-      throw new AppError('Parâmetro "page" precisa estar entre 1 e 10.', 400);
+    if (rawPage < MIN_PAGE) {
+      throw new AppError('Parâmetro "page" precisa ser maior ou igual a 1.', 400);
     }
 
     return rawPage;
@@ -94,8 +93,10 @@ export class GetLyricsUseCase {
 
     for (const result of results) {
       const title = result.title.trim();
-      const description = result.description.trim();
+      const artist = result.artist.trim();
+      const preview = result.preview.trim();
       const normalizedUrl = this.normalizeSongUrl(result.url);
+      const id = result.id || 'unknown';
 
       if (!title || !normalizedUrl) {
         continue;
@@ -108,8 +109,10 @@ export class GetLyricsUseCase {
 
       seen.add(dedupeKey);
       normalizedResults.push({
+        id,
         title,
-        description,
+        artist,
+        preview,
         url: normalizedUrl
       });
     }

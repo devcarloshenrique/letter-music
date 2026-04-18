@@ -2,13 +2,10 @@ import axios from 'axios';
 import { apiClient } from '../../../shared/lib/api-client';
 import type { 
   ApiErrorResponse, 
-  SearchLyricsMetadata,
   SyncedLyricsData, 
   SyncedLyricsSuccessResponse,
   SearchLyricsSuccessResponse
 } from '../types/home.types';
-
-const SEARCH_LYRICS_PAGE_SIZE = 10;
 
 function parseErrorMessage(error: unknown): string {
   if (axios.isAxiosError<ApiErrorResponse>(error)) {
@@ -53,27 +50,23 @@ export const homeService = {
 
       return {
         ...response.data,
-        metadata: {
-          ...response.data.metadata,
-          hasMore:
-            response.data.metadata.hasMore ??
-            response.data.data.length >= response.data.metadata.pageSize
-        }
       };
     } catch (error) {
       if (axios.isAxiosError<ApiErrorResponse>(error) && error.response?.status === 404) {
-        const metadata: SearchLyricsMetadata = {
-          page,
-          pageSize: SEARCH_LYRICS_PAGE_SIZE,
-          totalPages: page,
+        const pagination = {
+          current: page,
+          count: 0,
+          next: null,
+          prev: page > 1 ? page - 1 : null,
           hasMore: false
         };
 
         return {
           success: true,
           message: 'Sem mais resultados para esta busca.',
-          data: [],
-          metadata
+          request: { query, timestamp: new Date().toISOString() },
+          results: [],
+          pagination
         };
       }
 

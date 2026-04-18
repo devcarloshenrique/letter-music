@@ -16,8 +16,10 @@ describe('GetLyricsUseCase', () => {
     vi.mocked(provider.searchLyrics).mockResolvedValueOnce({
       results: [
         {
+          id: 'superman',
           title: 'Superman',
-          description: 'Música do Eminem no Letras.',
+          artist: 'Eminem',
+          preview: 'Música do Eminem no Letras.',
           url: 'https://www.letras.mus.br/eminem/superman/'
         }
       ],
@@ -46,23 +48,31 @@ describe('GetLyricsUseCase', () => {
     vi.mocked(provider.searchLyrics).mockResolvedValueOnce({
       results: [
         {
+          id: 'superman',
           title: 'Superman',
-          description: 'Música do Eminem no Letras.',
+          artist: 'Eminem',
+          preview: 'Música do Eminem no Letras.',
           url: 'https://www.letras.mus.br/eminem/superman/'
         },
         {
+          id: 'superman-duplicada',
           title: 'Superman duplicada',
-          description: 'Mesmo link com hash',
+          artist: 'Eminem',
+          preview: 'Mesmo link com hash',
           url: 'https://www.letras.mus.br/eminem/superman/#trecho'
         },
         {
+          id: 'significado',
           title: 'Significado',
-          description: 'Página de significado',
+          artist: 'Eminem',
+          preview: 'Página de significado',
           url: 'https://www.letras.mus.br/eminem/significado.html'
         },
         {
+          id: 'artista',
           title: 'Artista',
-          description: 'Página de artista',
+          artist: 'Eminem',
+          preview: 'Página de artista',
           url: 'https://www.letras.mus.br/eminem/'
         }
       ],
@@ -87,8 +97,10 @@ describe('GetLyricsUseCase', () => {
       .mockResolvedValueOnce({
         results: [
           {
+            id: 'not-afraid',
             title: 'Not Afraid',
-            description: 'Resultado no fallback',
+            artist: 'Eminem',
+            preview: 'Resultado no fallback',
             url: 'https://www.letras.mus.br/eminem/not-afraid/'
           }
         ],
@@ -120,8 +132,10 @@ describe('GetLyricsUseCase', () => {
     vi.mocked(provider.searchLyrics).mockResolvedValueOnce({
       results: [
         {
+          id: 'song',
           title: 'Song',
-          description: 'Desc',
+          artist: 'Eminem',
+          preview: 'Desc',
           url: 'https://www.letras.mus.br/eminem/song/'
         }
       ],
@@ -139,16 +153,36 @@ describe('GetLyricsUseCase', () => {
     await expect(useCase.execute({ q: '' })).rejects.toMatchObject({ statusCode: 400 });
   });
 
-  it('lança AppError 400 para página fora da faixa', async () => {
+  it('lança AppError 400 para página menor que 1', async () => {
     const provider = createProviderMock();
     const useCase = new GetLyricsUseCase(provider);
 
     await expect(
       useCase.execute({
         q: 'eminem',
-        page: 11
+        page: 0
       })
     ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it('não retorna erro para página acima de 10', async () => {
+    const provider = createProviderMock();
+    const useCase = new GetLyricsUseCase(provider);
+
+    vi.mocked(provider.searchLyrics).mockResolvedValueOnce({
+      results: []
+    });
+    vi.mocked(provider.searchLyrics).mockResolvedValueOnce({
+      results: []
+    });
+
+    const output = await useCase.execute({
+      q: 'eminem',
+      page: 11
+    });
+
+    expect(output.songs).toHaveLength(0);
+    expect(output.page).toBe(11);
   });
 
   it('retorna página vazia sem erro quando não há mais resultados em páginas posteriores', async () => {

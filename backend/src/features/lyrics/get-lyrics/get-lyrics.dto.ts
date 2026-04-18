@@ -4,8 +4,10 @@ export type GetLyricsInputDto = {
 };
 
 export type GetLyricsSongDto = {
+  id: string;
   title: string;
-  description: string;
+  artist: string;
+  preview: string;
   url: string;
 };
 

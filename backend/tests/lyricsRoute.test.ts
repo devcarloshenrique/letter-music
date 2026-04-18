@@ -6,12 +6,12 @@ const { searchLyricsMock } = vi.hoisted(() => ({
   searchLyricsMock: vi.fn()
 }));
 
-vi.mock('../src/shared/providers/scraping/playwright-scraping.provider', () => {
-  class PlaywrightScrapingProvider {
+vi.mock('../src/shared/providers/scraping/yahoo-scraping.provider', () => {
+  class YahooScrapingProvider {
     searchLyrics = searchLyricsMock;
   }
 
-  return { PlaywrightScrapingProvider };
+  return { YahooScrapingProvider };
 });
 
 describe('GET /api/lyrics', () => {
@@ -23,8 +23,10 @@ describe('GET /api/lyrics', () => {
     searchLyricsMock.mockResolvedValueOnce({
       results: [
         {
+          id: 'superman-id',
           title: 'Superman',
-          description: 'Música do Eminem no Letras.',
+          artist: 'Eminem',
+          preview: 'Música do Eminem no Letras.',
           url: 'https://www.letras.mus.br/eminem/superman/'
         }
       ]
@@ -37,16 +39,15 @@ describe('GET /api/lyrics', () => {
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.message).toBe('Busca realizada com sucesso.');
-    expect(response.body.data).toHaveLength(1);
-    expect(response.body.data[0].title).toBe('Superman');
-    expect(response.body.data[0].url).toBe('https://www.letras.mus.br/eminem/superman/');
-    expect(response.body.metadata.page).toBe(2);
-    expect(response.body.metadata.pageSize).toBe(10);
-    expect(response.body.metadata.totalPages).toBe(1);
-    
-    
-    
-    expect(response.body.metadata.path).toBe('/api/lyrics');
+    expect(response.body.results).toHaveLength(1);
+    expect(response.body.results[0].title).toBe('Superman');
+    expect(response.body.results[0].url).toBe('https://www.letras.mus.br/eminem/superman/');
+    expect(response.body.pagination.current).toBe(2);
+    expect(response.body.pagination.count).toBe(1);
+    expect(response.body.pagination.next).toBe(3);
+    expect(response.body.pagination.hasMore).toBe(true);
+
+    expect(response.body.request.query).toBe('eminem');
   });
 
   it('retorna 400 para query vazia', async () => {
@@ -59,12 +60,12 @@ describe('GET /api/lyrics', () => {
   });
 
   it('retorna 400 para page fora da faixa', async () => {
-    const response = await request(app).get('/api/lyrics').query({ q: 'eminem', page: 11 });
+    const response = await request(app).get('/api/lyrics').query({ q: 'eminem', page: -1 });
 
     expect(response.status).toBe(400);
     expect(response.body.success).toBe(false);
     expect(response.body.error.code).toBe('APP_ERROR');
-    expect(response.body.error.message).toContain('entre 1 e 10');
+    expect(response.body.error.message).toContain('maior ou igual a 1');
   });
 
   it('executa fallback quando primeira tentativa não encontra resultados', async () => {
@@ -75,8 +76,10 @@ describe('GET /api/lyrics', () => {
       .mockResolvedValueOnce({
         results: [
           {
+            id: 'not-afraid',
             title: 'Not Afraid',
-            description: 'Resultado no fallback',
+            artist: 'Eminem',
+            preview: 'Resultado no fallback',
             url: 'https://www.letras.mus.br/eminem/not-afraid/'
           }
         ]
@@ -88,8 +91,7 @@ describe('GET /api/lyrics', () => {
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
-    expect(response.body.data).toHaveLength(1);
-    
+    expect(response.body.results).toHaveLength(1);
     
     expect(searchLyricsMock).toHaveBeenCalledTimes(2);
   });

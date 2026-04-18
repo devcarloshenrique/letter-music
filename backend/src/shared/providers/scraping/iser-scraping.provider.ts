@@ -5,8 +5,10 @@ export type ScrapedLyrics = {
 };
 
 export type ScrapedLyricsSearchResult = {
+  id: string;
   title: string;
-  description: string;
+  artist: string;
+  preview: string;
   url: string;
 };
 

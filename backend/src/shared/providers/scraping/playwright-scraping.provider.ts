@@ -94,7 +94,7 @@ function mapSolrDocToResult(doc: SolrDoc): (ScrapedLyricsSearchResult & { score:
 
   return {
     title,
-    description: descriptionParts.join(' - '),
+    id: 'pw-' + Date.now(), artist: '', preview: descriptionParts.join(' - '),
     url,
     score: Number(doc.score ?? 0)
   };
@@ -160,11 +160,7 @@ export class PlaywrightScrapingProvider implements ILyricsSearchProvider {
     );
 
     return {
-      results: ordered.slice(start, end).map(({ title, description, url }) => ({
-        title,
-        description,
-        url
-      })),
+      results: ordered.slice(start, end).map(({ title, preview, url }) => ({ id: 'pw-' + Date.now(), artist: '', preview, url, title })),
     };
   }
 
@@ -257,11 +253,7 @@ export class PlaywrightScrapingProvider implements ILyricsSearchProvider {
                 (node.querySelector<HTMLElement>('.gs-snippet')?.textContent ?? '').trim();
               const url = titleAnchor?.href?.trim() ?? '';
 
-              return {
-                title,
-                description,
-                url
-              };
+              return { id: 'pw-' + Date.now().toString() + '-' + Math.random().toString(36).substring(7), artist: '', title, preview: description, url };
             })
             .filter((result) => result.title.length > 0 && result.url.length > 0);
         }, MAX_RESULTS_PER_PAGE),
