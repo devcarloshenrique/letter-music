@@ -39,6 +39,8 @@ const NON_SONG_SEGMENTS = new Set([
 ]);
 
 export class YahooScrapingProvider implements ILyricsSearchProvider {
+  private userAgentCursor = 0;
+
   async searchLyrics(input: SearchLyricsInput): Promise<SearchLyricsOutput> {
     const page = input.page || 1;
     const { html } = await this.fetchSearchPage(input.query, page);
@@ -109,7 +111,9 @@ export class YahooScrapingProvider implements ILyricsSearchProvider {
   }
 
   private pickUserAgent(): string {
-    return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+    const selected = USER_AGENTS[this.userAgentCursor % USER_AGENTS.length] ?? USER_AGENTS[0];
+    this.userAgentCursor = (this.userAgentCursor + 1) % USER_AGENTS.length;
+    return selected;
   }
 
   private isCaptchaPage(html: string, statusCode: number): boolean {

@@ -25,6 +25,7 @@ export class GetLyricsController {
         results: output.songs,
         pagination: {
           current: output.page,
+          skipped: output.skipped,
           count: output.songs.length,
           next: hasMore ? output.page + 1 : null,
           prev: output.page > 1 ? output.page - 1 : null,

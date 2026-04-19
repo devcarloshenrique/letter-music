@@ -16,4 +16,5 @@ export type GetLyricsOutputDto = {
   page: number;
   pageSize: number;
   totalPages: number;
+  skipped: number[];
 };

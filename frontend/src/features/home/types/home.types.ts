@@ -34,6 +34,7 @@ export type SearchLyricsSong = {
 
 export type SearchLyricsPagination = {
   current: number;
+  skipped: number[];
   count: number;
   next: number | null;
   prev: number | null;

@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { InfiniteData } from '@tanstack/react-query';
-import type { SearchLyricsSuccessResponse } from '../types/home.types';
+import type { SearchLyricsSong, SearchLyricsSuccessResponse } from '../types/home.types';
 import { useInfiniteScroll } from '../../../shared/hooks/use-infinite-scroll';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -17,6 +17,10 @@ interface SearchResultsProps {
   fetchNextPage: () => void;
   searchQuery: string;
   highlightedSongKey: string | null;
+  recoveredSongs: SearchLyricsSong[];
+  skippedPages: number[];
+  isRetryingSkippedPages: boolean;
+  onRetrySkippedPages: () => void;
 }
 
 export function SearchResults({
@@ -27,7 +31,11 @@ export function SearchResults({
   hasNextPage,
   fetchNextPage,
   searchQuery,
-  highlightedSongKey
+  highlightedSongKey,
+  recoveredSongs,
+  skippedPages,
+  isRetryingSkippedPages,
+  onRetrySkippedPages
 }: SearchResultsProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -35,11 +43,23 @@ export function SearchResults({
 
   const [scrollThreshold, setScrollThreshold] = useState(30);
 
-  useEffect(() => {
-    setScrollThreshold(30);
-  }, [searchQuery]);
+  const baseSongs = data?.pages.flatMap((page) => page.results) || [];
+  const allSongs = (() => {
+    const seenUrls = new Set<string>();
+    const mergedSongs: SearchLyricsSong[] = [];
 
-  const allSongs = data?.pages.flatMap((page) => page.results) || [];
+    for (const song of [...baseSongs, ...recoveredSongs]) {
+      const dedupeKey = song.url.toLowerCase();
+      if (seenUrls.has(dedupeKey)) {
+        continue;
+      }
+
+      seenUrls.add(dedupeKey);
+      mergedSongs.push(song);
+    }
+
+    return mergedSongs;
+  })();
   const isAutoFetchBlocked = allSongs.length >= scrollThreshold;
 
   const { observerTarget } = useInfiniteScroll({
@@ -100,6 +120,22 @@ export function SearchResults({
           {allSongs.length} found
         </div>
       </div>
+
+      {skippedPages.length > 0 && (
+        <div className="glass-panel rounded-xl border border-outline-variant/40 bg-surface-container px-4 py-3 flex items-center justify-between gap-3">
+          <p className="text-sm text-on-surface-variant">
+            Páginas puladas detectadas: {skippedPages.join(', ')}
+          </p>
+          <button
+            type="button"
+            onClick={onRetrySkippedPages}
+            disabled={isRetryingSkippedPages}
+            className="rounded-full bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/20 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isRetryingSkippedPages ? 'Recarregando...' : 'Recarregar páginas puladas'}
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
         {allSongs.map((song, index) => (
@@ -171,7 +207,7 @@ export function SearchResults({
             onClick={() => void fetchNextPage()}
             className="rounded-full border border-error/40 bg-error/10 px-4 py-2 text-sm font-semibold text-error hover:bg-error/20"
           >
-            Failed to load more. Try again
+            Tentar carregar mais
           </button>
         )}
         {isFetchingNextPage && (

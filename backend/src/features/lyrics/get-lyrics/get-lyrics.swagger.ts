@@ -36,55 +36,47 @@ export const getLyricsPathSpec = {
                 properties: {
                   success: { type: 'boolean', example: true },
                   message: { type: 'string', example: 'Busca realizada com sucesso.' },
-                  data: {
+                  request: {
+                    type: 'object',
+                    properties: {
+                      query: { type: 'string', example: 'eminem superman' },
+                      timestamp: { type: 'string', format: 'date-time' }
+                    },
+                    required: ['query', 'timestamp']
+                  },
+                  results: {
                     type: 'array',
                     items: {
                       type: 'object',
                       properties: {
+                        id: { type: 'string', example: 'superman-id' },
                         title: { type: 'string', example: 'Superman' },
-                        description: {
-                          type: 'string',
-                          example: 'Música de Eminem com letra e tradução no Letras.'
-                        },
-                        url: {
-                          type: 'string',
-                          format: 'uri',
-                          example: 'https://www.letras.mus.br/eminem/superman/'
-                        }
+                        artist: { type: 'string', example: 'Eminem' },
+                        preview: { type: 'string', example: 'Música do Eminem no Letras.' },
+                        url: { type: 'string', format: 'uri', example: 'https://www.letras.mus.br/eminem/superman/' }
                       },
-                      required: ['title', 'description', 'url']
+                      required: ['id', 'title', 'artist', 'preview', 'url']
                     }
                   },
-                  metadata: {
+                  pagination: {
                     type: 'object',
                     properties: {
-                      page: { type: 'integer', example: 2 },
-                      pageSize: { type: 'integer', example: 10 },
-                      totalPages: {
-                        type: 'integer',
-                        example: 10,
-                        description: 'Total de itens retornados na página.'
+                      current: { type: 'integer', example: 5 },
+                      skipped: {
+                        type: 'array',
+                        items: { type: 'integer' },
+                        example: [4],
+                        description: 'Páginas que falharam e foram puladas por retry/skip.'
                       },
-                      hasMore: {
-                        type: 'boolean',
-                        example: true,
-                        description: 'Indica se ainda existem páginas seguintes.'
-                      },
-
-                      timestamp: { type: 'string', format: 'date-time' },
-                      path: { type: 'string', example: '/api/lyrics' }
+                      count: { type: 'integer', example: 10 },
+                      next: { type: 'integer', nullable: true, example: 6 },
+                      prev: { type: 'integer', nullable: true, example: 4 },
+                      hasMore: { type: 'boolean', example: true }
                     },
-                    required: [
-                      'page',
-                      'pageSize',
-                      'totalPages',
-                      'hasMore',
-                      'timestamp',
-                      'path'
-                    ]
+                    required: ['current', 'skipped', 'count', 'next', 'prev', 'hasMore']
                   }
                 },
-                required: ['success', 'message', 'data', 'metadata']
+                required: ['success', 'message', 'request', 'results', 'pagination']
               }
             }
           }

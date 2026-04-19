@@ -1,17 +1,29 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useSearchParams } from 'react-router-dom';
 import { homeSearchSchema, type HomeSearchSchema } from '../schemas/home.schema';
 import { useSearchLyrics } from '../hooks/use-search-lyrics';
 import { SearchResults } from '../components/search-results';
+import { homeService } from '../services/home.service';
+import type { SearchLyricsSong } from '../types/home.types';
 
 export default function HomePage() {
   const [highlightedSongKey, setHighlightedSongKey] = useState<string | null>(null);
+  const [recoveredSongs, setRecoveredSongs] = useState<SearchLyricsSong[]>([]);
+  const [resolvedSkippedPages, setResolvedSkippedPages] = useState<number[]>([]);
+  const [isRetryingSkippedPages, setIsRetryingSkippedPages] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const searchQuery = (searchParams.get('q') ?? '').trim();
   const { data, isLoading, isFetchingNextPage, isFetchNextPageError, hasNextPage, fetchNextPage } = useSearchLyrics(searchQuery);
+
+  const skippedPages = useMemo(() => {
+    const pagesFromResponses = data?.pages.flatMap((page) => page.pagination.skipped) ?? [];
+    const uniquePages = Array.from(new Set(pagesFromResponses)).sort((a, b) => a - b);
+
+    return uniquePages.filter((page) => !resolvedSkippedPages.includes(page));
+  }, [data?.pages, resolvedSkippedPages]);
 
   const {
     register,
@@ -32,6 +44,12 @@ export default function HomePage() {
       shouldValidate: false
     });
   }, [searchQuery, setValue]);
+
+  useEffect(() => {
+    setRecoveredSongs([]);
+    setResolvedSkippedPages([]);
+    setIsRetryingSkippedPages(false);
+  }, [searchQuery]);
 
   useEffect(() => {
     if (!searchQuery || !data) return;
@@ -67,6 +85,59 @@ export default function HomePage() {
       return;
     }
     setSearchParams({ q: normalizedQuery });
+  };
+
+  const onRetrySkippedPages = async () => {
+    if (!searchQuery || skippedPages.length === 0 || isRetryingSkippedPages) {
+      return;
+    }
+
+    setIsRetryingSkippedPages(true);
+
+    try {
+      const baseSongs = data?.pages.flatMap((page) => page.results) ?? [];
+      const seenSongUrls = new Set<string>([
+        ...baseSongs.map((song) => song.url.toLowerCase()),
+        ...recoveredSongs.map((song) => song.url.toLowerCase())
+      ]);
+      const recoveredPages = new Set<number>();
+      const newRecoveredSongs: SearchLyricsSong[] = [];
+
+      for (const skippedPage of skippedPages) {
+        try {
+          const response = await homeService.searchLyrics(searchQuery, skippedPage);
+          const stillSkipped = response.pagination.skipped.includes(skippedPage);
+
+          if (stillSkipped || response.pagination.current !== skippedPage || response.results.length === 0) {
+            continue;
+          }
+
+          recoveredPages.add(skippedPage);
+
+          for (const song of response.results) {
+            const dedupeKey = song.url.toLowerCase();
+            if (seenSongUrls.has(dedupeKey)) {
+              continue;
+            }
+
+            seenSongUrls.add(dedupeKey);
+            newRecoveredSongs.push(song);
+          }
+        } catch {
+          continue;
+        }
+      }
+
+      if (newRecoveredSongs.length > 0) {
+        setRecoveredSongs((current) => [...current, ...newRecoveredSongs]);
+      }
+
+      if (recoveredPages.size > 0) {
+        setResolvedSkippedPages((current) => [...new Set([...current, ...recoveredPages])]);
+      }
+    } finally {
+      setIsRetryingSkippedPages(false);
+    }
   };
 
   return (
@@ -131,6 +202,7 @@ export default function HomePage() {
           className="max-w-6xl mx-auto px-4 md:px-6 pb-32 w-full"
         >
           <SearchResults
+            key={searchQuery}
             data={data}
             isLoading={isLoading}
             isFetchingNextPage={isFetchingNextPage}
@@ -139,6 +211,12 @@ export default function HomePage() {
             fetchNextPage={fetchNextPage}
             searchQuery={searchQuery}
             highlightedSongKey={highlightedSongKey}
+            recoveredSongs={recoveredSongs}
+            skippedPages={skippedPages}
+            isRetryingSkippedPages={isRetryingSkippedPages}
+            onRetrySkippedPages={() => {
+              void onRetrySkippedPages();
+            }}
           />
         </motion.section>
       ) : null}

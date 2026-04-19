@@ -57,6 +57,7 @@ describe('GET /api/lyrics', () => {
     expect(response.body.results[0].title).toBe('Superman');
     expect(response.body.results[0].url).toBe('https://www.letras.mus.br/eminem/superman/');
     expect(response.body.pagination.current).toBe(2);
+    expect(response.body.pagination.skipped).toEqual([]);
     expect(response.body.pagination.count).toBe(1);
     expect(response.body.pagination.next).toBe(3);
     expect(response.body.pagination.hasMore).toBe(true);
@@ -106,18 +107,105 @@ describe('GET /api/lyrics', () => {
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.results).toHaveLength(1);
+    expect(response.body.pagination.current).toBe(4);
+    expect(response.body.pagination.skipped).toEqual([]);
     
     expect(searchLyricsMock).toHaveBeenCalledTimes(2);
   });
 
-  it('retorna 404 quando busca não encontra músicas', async () => {
+  it('Cenário A: recupera na segunda tentativa da mesma página após erro 5xx', async () => {
+    searchLyricsMock
+      .mockRejectedValueOnce(new AppError('Falha temporária', 502))
+      .mockResolvedValueOnce({
+        results: [
+          {
+            id: 'without-me',
+            title: 'Without Me',
+            artist: 'Eminem',
+            preview: 'Recuperado na segunda tentativa',
+            url: 'https://www.letras.mus.br/eminem/without-me/'
+          }
+        ]
+      });
+
+    const response = await request(app)
+      .get('/api/lyrics')
+      .query({ q: 'eminem', page: 4 });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.pagination.current).toBe(4);
+    expect(response.body.pagination.skipped).toEqual([]);
+    expect(response.body.results).toHaveLength(1);
+    expect(searchLyricsMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('Cenário B: após 3 falhas 5xx pula para a página seguinte', async () => {
+    searchLyricsMock
+      .mockRejectedValueOnce(new AppError('Falha página 4 tentativa 1', 502))
+      .mockRejectedValueOnce(new AppError('Falha página 4 tentativa 2', 502))
+      .mockRejectedValueOnce(new AppError('Falha página 4 tentativa 3', 502))
+      .mockResolvedValueOnce({
+        results: [
+          {
+            id: 'cleanin-out-my-closet',
+            title: "Cleanin' Out My Closet",
+            artist: 'Eminem',
+            preview: 'Resultado da página seguinte',
+            url: 'https://www.letras.mus.br/eminem/cleanin-out-my-closet/'
+          }
+        ]
+      });
+
+    const response = await request(app)
+      .get('/api/lyrics')
+      .query({ q: 'eminem', page: 4 });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.pagination.current).toBe(5);
+    expect(response.body.pagination.skipped).toEqual([4]);
+    expect(response.body.pagination.next).toBe(6);
+    expect(response.body.results).toHaveLength(1);
+    expect(searchLyricsMock).toHaveBeenCalledTimes(4);
+  });
+
+  it('Cenário C: vazio falso em página instável recupera sem salto', async () => {
     searchLyricsMock
       .mockResolvedValueOnce({
         results: []
       })
       .mockResolvedValueOnce({
         results: []
+      })
+      .mockResolvedValueOnce({
+        results: [
+          {
+            id: 'real-slim-shady',
+            title: 'The Real Slim Shady',
+            artist: 'Eminem',
+            preview: 'Recuperado após vazio falso',
+            url: 'https://www.letras.mus.br/eminem/the-real-slim-shady/'
+          }
+        ]
       });
+
+    const response = await request(app)
+      .get('/api/lyrics')
+      .query({ q: 'eminem', page: 4 });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.pagination.current).toBe(4);
+    expect(response.body.pagination.skipped).toEqual([]);
+    expect(response.body.results).toHaveLength(1);
+    expect(searchLyricsMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('retorna 404 quando busca não encontra músicas', async () => {
+    searchLyricsMock.mockResolvedValue({
+      results: []
+    });
 
     const response = await request(app)
       .get('/api/lyrics')
@@ -130,14 +218,16 @@ describe('GET /api/lyrics', () => {
   });
 
   it('retorna 502 em falha técnica de scraping', async () => {
-    searchLyricsMock.mockRejectedValueOnce(new Error('navigation timeout'));
+    searchLyricsMock.mockRejectedValue(new Error('navigation timeout'));
 
     const response = await request(app).get('/api/lyrics').query({ q: 'eminem', page: 1 });
 
     expect(response.status).toBe(502);
     expect(response.body.success).toBe(false);
     expect(response.body.error.code).toBe('APP_ERROR');
-    expect(response.body.error.message).toContain('Falha ao consultar resultados');
+    expect(response.body.error.message).toContain(
+      'Falha ao validar disponibilidade de legendas sincronizadas.'
+    );
   });
 
   it('retorna apenas músicas com legenda sincronizada', async () => {

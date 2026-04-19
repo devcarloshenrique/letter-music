@@ -9,11 +9,36 @@ const ALLOWED_HOSTS = new Set(['www.letras.mus.br', 'letras.mus.br']);
 const BLOCKED_PATH_MARKERS = ['/significado', '/aprenda-ingles'];
 const MIN_PAGE = 1;
 const PAGE_SIZE = 10;
+const MAX_RETRY_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 300;
+const PAGE_HARD_STOP = 7;
+const MAX_EXTRA_PAGES = 3;
+const EMPTY_RETRY_PAGE_LIMIT = 7;
 
 type FilteredSongsOutput = {
   songs: GetLyricsSongDto[];
   hasTechnicalFailures: boolean;
 };
+
+type ResilientSearchOutput = FilteredSongsOutput & {
+  page: number;
+  skipped: number[];
+};
+
+type PageRetryOutcome =
+  | {
+      kind: 'success';
+      output: FilteredSongsOutput;
+    }
+  | {
+      kind: 'empty';
+    }
+  | {
+      kind: 'retriable-technical-failure';
+    }
+  | {
+      kind: 'fatal-technical-failure';
+    };
 
 export interface ISyncedLyricsAvailabilityProvider {
   hasSyncedLyrics(url: string): Promise<boolean>;
@@ -35,20 +60,24 @@ export class GetLyricsUseCase {
       );
     }
 
-    const page = this.parseAndValidatePage(input.page);
-    const { songs, hasTechnicalFailures } = await this.searchWithFallback(query, page);
+    const requestedPage = this.parseAndValidatePage(input.page);
+    const { songs, hasTechnicalFailures, page, skipped } = await this.searchWithRetryAndSkip(
+      query,
+      requestedPage
+    );
 
     if (songs.length === 0) {
       if (hasTechnicalFailures) {
         throw new AppError('Falha ao validar disponibilidade de legendas sincronizadas.', 502);
       }
 
-      if (page > 1) {
+      if (requestedPage > 1) {
         return {
           songs: [],
           page,
           pageSize: PAGE_SIZE,
-          totalPages: page - 1
+          totalPages: page - 1,
+          skipped
         };
       }
 
@@ -61,8 +90,144 @@ export class GetLyricsUseCase {
       songs,
       page,
       pageSize: PAGE_SIZE,
-      totalPages
+      totalPages,
+      skipped
     };
+  }
+
+  private async searchWithRetryAndSkip(query: string, startPage: number): Promise<ResilientSearchOutput> {
+    const skipped: number[] = [];
+    const maxPage = this.resolveMaxPageForChainedSkip(startPage);
+    let currentPage = startPage;
+
+    while (currentPage <= maxPage) {
+      const outcome = await this.searchPageWithRetries(query, currentPage);
+
+      if (outcome.kind === 'success') {
+        return {
+          songs: outcome.output.songs,
+          hasTechnicalFailures: outcome.output.hasTechnicalFailures,
+          page: currentPage,
+          skipped
+        };
+      }
+
+      if (outcome.kind === 'fatal-technical-failure') {
+        return {
+          songs: [],
+          hasTechnicalFailures: true,
+          page: currentPage,
+          skipped
+        };
+      }
+
+      if (outcome.kind === 'empty') {
+        const canSkipCurrentPage = currentPage < maxPage && currentPage < PAGE_HARD_STOP;
+
+        if (canSkipCurrentPage) {
+          skipped.push(currentPage);
+          currentPage += 1;
+          continue;
+        }
+
+        return {
+          songs: [],
+          hasTechnicalFailures: false,
+          page: currentPage,
+          skipped
+        };
+      }
+
+      const canSkipCurrentPage = currentPage < maxPage && currentPage < PAGE_HARD_STOP;
+
+      if (canSkipCurrentPage) {
+        skipped.push(currentPage);
+        currentPage += 1;
+        continue;
+      }
+
+      const suppressTechnicalFailure = currentPage === PAGE_HARD_STOP;
+      return {
+        songs: [],
+        hasTechnicalFailures: !suppressTechnicalFailure,
+        page: currentPage,
+        skipped
+      };
+    }
+
+    return {
+      songs: [],
+      hasTechnicalFailures: false,
+      page: startPage,
+      skipped
+    };
+  }
+
+  private async searchPageWithRetries(query: string, page: number): Promise<PageRetryOutcome> {
+    for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt += 1) {
+      try {
+        const output = await this.searchWithFallback(query, page);
+
+        if (output.songs.length > 0) {
+          return {
+            kind: 'success',
+            output
+          };
+        }
+
+        if (output.hasTechnicalFailures) {
+          return {
+            kind: 'fatal-technical-failure'
+          };
+        }
+
+        const shouldRetryEmpty = page < EMPTY_RETRY_PAGE_LIMIT && attempt < MAX_RETRY_ATTEMPTS;
+
+        if (shouldRetryEmpty) {
+          await this.waitRetryDelay();
+          continue;
+        }
+
+        return {
+          kind: 'empty'
+        };
+      } catch (error) {
+        if (error instanceof AppError && this.isRetriableServerError(error)) {
+          if (attempt < MAX_RETRY_ATTEMPTS) {
+            await this.waitRetryDelay();
+            continue;
+          }
+
+          return {
+            kind: 'retriable-technical-failure'
+          };
+        }
+
+        throw error;
+      }
+    }
+
+    return {
+      kind: 'retriable-technical-failure'
+    };
+  }
+
+  private resolveMaxPageForChainedSkip(startPage: number): number {
+    if (startPage >= PAGE_HARD_STOP) {
+      return startPage;
+    }
+
+    return Math.min(PAGE_HARD_STOP, startPage + MAX_EXTRA_PAGES);
+  }
+
+  private isRetriableServerError(error: AppError): boolean {
+    return error.statusCode >= 500 && error.statusCode < 600;
+  }
+
+  private async waitRetryDelay(): Promise<void> {
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, RETRY_DELAY_MS);
+    });
   }
 
   private parseAndValidatePage(rawPage: number | undefined): number {

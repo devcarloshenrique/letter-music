@@ -55,6 +55,7 @@ export const homeService = {
       if (axios.isAxiosError<ApiErrorResponse>(error) && error.response?.status === 404) {
         const pagination = {
           current: page,
+          skipped: [],
           count: 0,
           next: null,
           prev: page > 1 ? page - 1 : null,
