@@ -54,7 +54,7 @@ export function GlobalLyricsPlayerHost({ mode = 'hidden' }: GlobalLyricsPlayerHo
           wrapper.style.zIndex = '50';
           wrapper.style.opacity = '1';
           wrapper.style.pointerEvents = 'auto';
-          wrapper.style.borderRadius = '16px'; // matching rounded-2xl
+          wrapper.style.borderRadius = '12px'; // matching rounded-xl
         }
       }
       

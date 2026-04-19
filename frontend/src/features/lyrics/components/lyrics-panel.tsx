@@ -68,20 +68,20 @@ export function LyricsPanel({
         {isLoading && (
           <div className='space-y-6'>
             {Array.from({ length: 8 }).map((_, index) => (
-              <div key={`lyrics-skeleton-${index}`} className='h-8 w-full animate-pulse rounded-xl bg-surface-high/70' />
+              <div key={`lyrics-skeleton-${index}`} className='h-8 w-full animate-pulse rounded-[24px] bg-surface-high/70' />
             ))}
           </div>
         )}
 
         {!isLoading && errorMessage && (
-          <div className='flex items-start gap-3 rounded-xl border border-error/40 bg-error/10 p-4 text-error'>
+          <div className='flex items-start gap-3 rounded-[24px] border border-error/40 bg-error/10 p-4 text-error'>
             <TriangleAlert size={20} className='mt-0.5 shrink-0' />
             <p className='text-sm font-medium'>{errorMessage}</p>
           </div>
         )}
 
         {!isLoading && !errorMessage && lines.length === 0 && (
-          <div className='mx-auto flex max-w-xl flex-col items-center justify-center rounded-2xl border border-outline-variant/30 bg-surface/60 p-8 text-center'>
+          <div className='mx-auto flex max-w-xl flex-col items-center justify-center rounded-[24px] border border-outline-variant/30 bg-surface/60 p-8 text-center'>
             <LoaderCircle size={20} className='mb-3 text-secondary' />
             <p className='text-headline'>Cole uma URL válida para começar</p>
             <p className='mt-2 text-sm text-on-surface-variant'>A letra sincronizada aparecerá aqui assim que o endpoint retornar os dados.</p>

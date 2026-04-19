@@ -92,7 +92,7 @@ export function SearchResults({
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col items-center justify-center p-12 text-center glass-panel rounded-xl mt-8"
+        className="flex flex-col items-center justify-center p-12 text-center glass-panel rounded-[24px] mt-8"
       >
         <span className="material-symbols-outlined text-on-surface-variant/50 opacity-50 mb-4 scale-150" style={{ fontSize: '3rem' }}>search</span>
         <h3 className="text-xl font-bold text-on-surface mb-2">No results found</h3>
@@ -113,7 +113,7 @@ export function SearchResults({
       </div>
 
       {skippedPages.length > 0 && (
-        <div className="glass-panel rounded-xl border border-outline-variant/40 bg-surface-container px-4 py-3 flex items-center justify-between gap-3">
+        <div className="glass-panel rounded-[24px] border border-outline-variant/40 bg-surface-container px-4 py-3 flex items-center justify-between gap-3">
           <p className="text-sm text-on-surface-variant">
             Páginas puladas detectadas: {skippedPages.join(', ')}
           </p>

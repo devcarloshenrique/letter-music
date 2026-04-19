@@ -2,7 +2,71 @@ import { createContext, type PropsWithChildren, useCallback, useContext, useEffe
 import type { SyncedLine } from '../../home/types/home.types';
 import { parseSyncedTimeToSeconds } from '../utils/lyrics-time.utils';
 
-const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25] as const;
+const PLAYBACK_SPEED_STORAGE_KEY = 'lyrics:playback-speeds';
+const PLAYBACK_SPEED_DEFAULTS = [0.5, 0.75, 1] as const;
+const PLAYBACK_SPEED_SLOTS_COUNT = PLAYBACK_SPEED_DEFAULTS.length;
+const PLAYBACK_SPEED_MIN = 0.25;
+const PLAYBACK_SPEED_MAX = 2;
+const PLAYBACK_SPEED_STEP = 0.05;
+const PLAYBACK_SPEED_EPSILON = 0.001;
+
+const isSameSpeed = (left: number, right: number) => Math.abs(left - right) <= PLAYBACK_SPEED_EPSILON;
+
+const normalizePlaybackSpeed = (value: number) => {
+  const boundedValue = Math.max(PLAYBACK_SPEED_MIN, Math.min(PLAYBACK_SPEED_MAX, value));
+  const steppedValue = Math.round(boundedValue / PLAYBACK_SPEED_STEP) * PLAYBACK_SPEED_STEP;
+  return Number(steppedValue.toFixed(2));
+};
+
+const sanitizePlaybackSpeeds = (source: unknown) => {
+  if (!Array.isArray(source)) {
+    return [...PLAYBACK_SPEED_DEFAULTS];
+  }
+
+  const normalizedSource = source
+    .filter((item): item is number => typeof item === 'number' && Number.isFinite(item))
+    .map((item) => normalizePlaybackSpeed(item));
+
+  const slots = Array.from({ length: PLAYBACK_SPEED_SLOTS_COUNT }, (_, index) => {
+    const sourceValue = normalizedSource[index];
+    return typeof sourceValue === 'number' ? sourceValue : PLAYBACK_SPEED_DEFAULTS[index];
+  });
+
+  return slots;
+};
+
+const loadPersistedPlaybackSpeeds = () => {
+  if (typeof window === 'undefined') {
+    return [...PLAYBACK_SPEED_DEFAULTS];
+  }
+
+  try {
+    const persistedValue = window.localStorage.getItem(PLAYBACK_SPEED_STORAGE_KEY);
+
+    if (!persistedValue) {
+      return [...PLAYBACK_SPEED_DEFAULTS];
+    }
+
+    const parsedValue: unknown = JSON.parse(persistedValue);
+    return sanitizePlaybackSpeeds(parsedValue);
+  } catch {
+    return [...PLAYBACK_SPEED_DEFAULTS];
+  }
+};
+
+const pickClosestPlaybackSpeed = (targetRate: number, speeds: readonly number[]) => {
+  if (speeds.length === 0) {
+    return normalizePlaybackSpeed(targetRate);
+  }
+
+  return speeds.reduce((closestSpeed, speed) => {
+    if (Math.abs(speed - targetRate) < Math.abs(closestSpeed - targetRate)) {
+      return speed;
+    }
+
+    return closestSpeed;
+  }, speeds[0]);
+};
 
 type PlayerLike = {
   seekTo: (seconds: number, allowSeekAhead?: boolean) => void;
@@ -34,6 +98,7 @@ type LyricsPlayerContextValue = {
   playbackRate: number;
   volume: number;
   playbackSpeeds: readonly number[];
+  updatePlaybackSpeedSlot: (slotIndex: number, rate: number) => void;
   loopIndices: number[];
   loopRange: LoopRange | null;
   nowPlaying: NowPlaying | null;
@@ -65,6 +130,7 @@ export function LyricsPlayerProvider({ children }: PropsWithChildren) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [playbackSpeeds, setPlaybackSpeeds] = useState<number[]>(() => loadPersistedPlaybackSpeeds());
   const [playbackRate, setPlaybackRate] = useState<number>(1);
   const [volume, setVolumeState] = useState<number>(80);
   const [loopIndices, setLoopIndices] = useState<number[]>([]);
@@ -131,8 +197,28 @@ export function LyricsPlayerProvider({ children }: PropsWithChildren) {
   );
 
   const setSpeed = useCallback((rate: number) => {
-    setPlaybackRate(rate);
-    playerRef.current?.setPlaybackRate(rate);
+    const normalizedRate = normalizePlaybackSpeed(rate);
+    setPlaybackRate(normalizedRate);
+    playerRef.current?.setPlaybackRate(normalizedRate);
+  }, []);
+
+  const updatePlaybackSpeedSlot = useCallback((slotIndex: number, rate: number) => {
+    if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex >= PLAYBACK_SPEED_SLOTS_COUNT) {
+      return;
+    }
+
+    const normalizedRate = normalizePlaybackSpeed(rate);
+
+    setPlaybackSpeeds((currentSpeeds) => {
+      const nextSpeeds = sanitizePlaybackSpeeds(currentSpeeds);
+
+      if (isSameSpeed(nextSpeeds[slotIndex], normalizedRate)) {
+        return currentSpeeds;
+      }
+
+      nextSpeeds[slotIndex] = normalizedRate;
+      return nextSpeeds;
+    });
   }, []);
 
   const setVolume = useCallback((nextVolume: number) => {
@@ -142,10 +228,14 @@ export function LyricsPlayerProvider({ children }: PropsWithChildren) {
   }, []);
 
   const cycleSpeed = useCallback(() => {
-    const currentIndex = PLAYBACK_SPEEDS.findIndex((speed) => speed === playbackRate);
-    const nextRate = PLAYBACK_SPEEDS[(currentIndex + 1) % PLAYBACK_SPEEDS.length];
+    if (playbackSpeeds.length === 0) {
+      return;
+    }
+
+    const currentIndex = playbackSpeeds.findIndex((speed) => isSameSpeed(speed, playbackRate));
+    const nextRate = playbackSpeeds[(currentIndex + 1) % playbackSpeeds.length] ?? playbackSpeeds[0];
     setSpeed(nextRate);
-  }, [playbackRate, setSpeed]);
+  }, [playbackRate, playbackSpeeds, setSpeed]);
 
   const togglePlayPause = useCallback(() => {
     if (!playerRef.current) {
@@ -310,6 +400,24 @@ export function LyricsPlayerProvider({ children }: PropsWithChildren) {
   }, [isPlayerReady, loopIndices, loopRange, lines]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.localStorage.setItem(PLAYBACK_SPEED_STORAGE_KEY, JSON.stringify(playbackSpeeds));
+  }, [playbackSpeeds]);
+
+  useEffect(() => {
+    if (playbackSpeeds.some((speed) => isSameSpeed(speed, playbackRate))) {
+      return;
+    }
+
+    const fallbackRate = pickClosestPlaybackSpeed(playbackRate, playbackSpeeds);
+    setPlaybackRate(fallbackRate);
+    playerRef.current?.setPlaybackRate(fallbackRate);
+  }, [playbackRate, playbackSpeeds]);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       const isEditable = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable;
@@ -362,7 +470,8 @@ export function LyricsPlayerProvider({ children }: PropsWithChildren) {
       isPlaying,
       playbackRate,
       volume,
-      playbackSpeeds: PLAYBACK_SPEEDS,
+      playbackSpeeds,
+      updatePlaybackSpeedSlot,
       loopIndices,
       loopRange,
       nowPlaying,
@@ -391,6 +500,8 @@ export function LyricsPlayerProvider({ children }: PropsWithChildren) {
       isPlaying,
       playbackRate,
       volume,
+      playbackSpeeds,
+      updatePlaybackSpeedSlot,
       loopIndices,
       loopRange,
       nowPlaying,

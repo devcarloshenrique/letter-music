@@ -57,6 +57,7 @@ export default function LyricsWorkspacePage() {
     playbackRate,
     volume,
     playbackSpeeds,
+    updatePlaybackSpeedSlot,
     loopIndices,
     loopRange,
     setLoopRange,
@@ -248,6 +249,7 @@ export default function LyricsWorkspacePage() {
             videoSlotId='lyrics-sidebar-video-slot'
             playbackRate={playbackRate}
             playbackSpeeds={playbackSpeeds}
+            onSpeedSlotUpdate={updatePlaybackSpeedSlot}
             onSpeedSelect={setSpeed}
             onClose={() => setIsSidePanelOpen(false)}
           />
@@ -258,6 +260,7 @@ export default function LyricsWorkspacePage() {
             videoId={videoId}
             playbackRate={playbackRate}
             playbackSpeeds={playbackSpeeds}
+            onSpeedSlotUpdate={updatePlaybackSpeedSlot}
             onSpeedSelect={setSpeed}
           />
         </div>
