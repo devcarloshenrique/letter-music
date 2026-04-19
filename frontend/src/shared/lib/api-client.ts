@@ -1,18 +1,28 @@
 import axios from 'axios';
 import { authEvents } from './auth-events';
+import { appConfig } from '../config/app-config';
 
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? '',
   withCredentials: true
 });
 
-let failedQueue: Array<{ encode: (token?: string) => void; reject: (error: any) => void }> = [];
+type RetryQueueItem = {
+  encode: (value?: unknown) => void;
+  reject: (reason?: unknown) => void;
+};
+
+let failedQueue: RetryQueueItem[] = [];
 let isRefreshing = false;
 
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+
+    if (!appConfig.authEnabled || !originalRequest) {
+      return Promise.reject(error);
+    }
 
     // Se receber 401 e for erro do tipo AUTH_SESSION_EXPIRED
     if (error.response?.status === 401 && !originalRequest._retry) {

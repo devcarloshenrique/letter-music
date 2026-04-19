@@ -5,6 +5,7 @@ import { FooterPlayer } from '../../features/lyrics/components/footer-player';
 import { GlobalLyricsPlayerHost } from '../../features/lyrics/components/global-lyrics-player-host';
 import { useLyricsPlayerContext } from '../../features/lyrics/context/lyrics-player-context';
 import { SettingsAuthModal } from '../../shared/components/layout/settings-auth-modal';
+import { appConfig } from '../../shared/config/app-config';
 
 export function RootLayout({ children }: PropsWithChildren) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -37,6 +38,10 @@ export function RootLayout({ children }: PropsWithChildren) {
   const shouldShowGlobalFooterPlayer = !isWorkspace && Boolean(nowPlaying?.videoId);
 
   useEffect(() => {
+    if (!appConfig.authEnabled) {
+      return;
+    }
+
     import('../../shared/lib/auth-events').then(({ authEvents }) => {
       authEvents.on401(() => {
         setIsSettingsOpen(true);
@@ -104,7 +109,9 @@ export function RootLayout({ children }: PropsWithChildren) {
           {children}
         </main>
       </div>
-      <SettingsAuthModal isOpen={isSettingsOpen} onClose={handleCloseSettings} />
+      {appConfig.authEnabled && (
+        <SettingsAuthModal isOpen={isSettingsOpen} onClose={handleCloseSettings} />
+      )}
       {shouldShowGlobalFooterPlayer && nowPlaying && (
         <FooterPlayer
           lines={lines}

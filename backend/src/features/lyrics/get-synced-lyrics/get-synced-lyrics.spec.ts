@@ -11,40 +11,57 @@ function createHttpClientMock(): IHttpClient {
   };
 }
 
-function createLegSincHtml(linesCount = 22): string {
-  const items = Array.from({ length: linesCount }, (_, index) => {
-    const start = (21.8 + index).toFixed(1);
-    const end = (31.1 + index).toFixed(1);
-    const text = `Linha ${index + 1}`;
-    const useSpanFallback = index === 0;
-
-    return `
-      <li class="lineItem">
-        <input class="time start" rel="${start}" />
-        <input class="time end" rel="${end}" />
-        <input class="legenda" value="${useSpanFallback ? '' : text}" />
-        ${useSpanFallback ? `<span class="lsin_c3">${text}</span>` : ''}
-      </li>
-    `;
-  }).join('');
-
+function createPublicPageWithSubtitleMeta(): string {
   return `
     <html>
       <body>
-        <form id="leg_sinc">
-          <input type="hidden" name="song_id" value="111" />
-          <input type="hidden" name="video_id" value="222" />
-          <input type="hidden" name="subtitle_id" value="333" />
-          <ul id="lsin_ls">
-            ${items}
-          </ul>
-        </form>
+        <script>
+          _omq.push(['ui/player', {
+            "DNS":"casa-worship",
+            "URL":"123456",
+            "YoutubeID":"5QHF5OQeFOs"
+          }]);
+        </script>
       </body>
     </html>
   `;
 }
 
-function createPublicPageWithUiLyricScript(): string {
+function createPublicPageWithSlugUrlAndNumericIdMeta(): string {
+  return `
+    <html>
+      <body>
+        <script>
+          _omq.push(['ui/lyric', {
+            "DNS":"ariana-grande",
+            "ID":3074298,
+            "URL":"thank-u-next",
+            "YoutubeID":"gl1aHhXnN1k"
+          }]);
+        </script>
+      </body>
+    </html>
+  `;
+}
+
+function createPublicPageWithEmptyYoutubeAndNumericSong(): string {
+  return `
+    <html>
+      <body>
+        <script>
+          _omq.push(['ui/lyric', {
+            "DNS":"linkin-park",
+            "ID":65985,
+            "URL":"65985",
+            "YoutubeID":""
+          }]);
+        </script>
+      </body>
+    </html>
+  `;
+}
+
+function createPublicPageWithContributionMeta(): string {
   return `
     <html>
       <body>
@@ -60,346 +77,266 @@ function createPublicPageWithUiLyricScript(): string {
   `;
 }
 
-function createPublicPageWithUiPlayerScript(): string {
-  return `
-    <html>
-      <body>
-        <script>
-          _omq.push(['ui/player', {
-            "DNS":"casa-worship",
-            "URL":"a-casa-e-sua",
-            "YoutubeID":"5QHF5OQeFOs"
-          }]);
-        </script>
-      </body>
-    </html>
-  `;
+function createSubtitlePayload(): Record<string, unknown> {
+  return {
+    Original: {
+      VideoID: '5QHF5OQeFOs',
+      Subtitle: JSON.stringify([
+        ['Linha 1', '21.8', '31.1'],
+        ['Linha 2', '32.2', '40.5']
+      ])
+    }
+  };
 }
 
-function createPublicPageWithEditLink(): string {
+function createLegSincHtml(linesCount = 2): string {
+  const items = Array.from({ length: linesCount }, (_, index) => {
+    const start = (21.8 + index).toFixed(1);
+    const end = (31.1 + index).toFixed(1);
+    const text = `Linha ${index + 1}`;
+
+    return `
+      <li class="lineItem">
+        <input class="time start" rel="${start}" />
+        <input class="time end" rel="${end}" />
+        <input class="legenda" value="${text}" />
+      </li>
+    `;
+  }).join('');
+
   return `
     <html>
       <body>
-        <a href="/contribuicoes/corrigir_legenda/casa-worship/a-casa-e-sua/5QHF5OQeFOs/">Editar legenda</a>
+        <form id="leg_sinc">
+          <input type="hidden" name="song_id" value="111" />
+          <input type="hidden" name="video_id" value="222" />
+          <input type="hidden" name="subtitle_id" value="333" />
+          <ul id="lsin_ls">${items}</ul>
+        </form>
       </body>
     </html>
   `;
 }
 
 describe('GetSyncedLyricsUseCase', () => {
-  it('aceita URL pública e resolve URL de contribuição via script ui/lyric', async () => {
+  it('retorna linhas públicas sem exigir login (regressão do gate de autenticação)', async () => {
     const httpClient = createHttpClientMock();
     const useCase = new GetSyncedLyricsUseCase(httpClient);
 
-    vi.mocked(httpClient.getCookies)
-      .mockResolvedValueOnce(['login=123'])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
-    vi.mocked(httpClient.postJson).mockResolvedValueOnce({
-      status: 200,
-      data: {
-        data: {
-          viewer: {
-            isSessionValid: true
-          }
-        }
-      }
-    });
     vi.mocked(httpClient.get)
       .mockResolvedValueOnce({
         status: 200,
-        data: createPublicPageWithUiLyricScript()
+        data: createPublicPageWithSubtitleMeta()
       })
       .mockResolvedValueOnce({
         status: 200,
-        data: createLegSincHtml(22)
+        data: createSubtitlePayload()
       });
 
     const result = await useCase.execute({
       url: 'https://www.letras.mus.br/casa-worship/a-casa-e-sua/'
     });
 
-    expect(result.lines).toHaveLength(22);
+    expect(result.lines).toHaveLength(2);
+    expect(result.video_url).toBe('https://www.youtube.com/watch?v=5QHF5OQeFOs');
+    expect(result.hidden).toBeNull();
     expect(vi.mocked(httpClient.get).mock.calls[1]?.[0]).toBe(
-      'https://www.letras.mus.br/contribuicoes/corrigir_legenda/casa-worship/a-casa-e-sua/5QHF5OQeFOs/'
+      'https://www.letras.mus.br/api/v2/subtitle/123456/5QHF5OQeFOs/'
     );
+    expect(vi.mocked(httpClient.getCookies)).not.toHaveBeenCalled();
+    expect(vi.mocked(httpClient.postJson)).not.toHaveBeenCalled();
   });
 
-  it('usa fallback ui/player quando ui/lyric não existe', async () => {
+  it('usa fallback do HTML sincronizado quando metadados públicos de subtitle não existem', async () => {
     const httpClient = createHttpClientMock();
     const useCase = new GetSyncedLyricsUseCase(httpClient);
 
-    vi.mocked(httpClient.getCookies)
-      .mockResolvedValueOnce(['login=123'])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
-    vi.mocked(httpClient.postJson).mockResolvedValueOnce({
-      status: 200,
-      data: {
-        data: {
-          viewer: {
-            isSessionValid: true
-          }
-        }
-      }
-    });
     vi.mocked(httpClient.get)
       .mockResolvedValueOnce({
         status: 200,
-        data: createPublicPageWithUiPlayerScript()
+        data: createPublicPageWithContributionMeta()
       })
       .mockResolvedValueOnce({
         status: 200,
-        data: createLegSincHtml(22)
+        data: createLegSincHtml()
       });
-
-    await useCase.execute({
-      url: 'https://www.letras.mus.br/casa-worship/a-casa-e-sua/'
-    });
-
-    expect(vi.mocked(httpClient.get).mock.calls[1]?.[0]).toBe(
-      'https://www.letras.mus.br/contribuicoes/corrigir_legenda/casa-worship/a-casa-e-sua/5QHF5OQeFOs/'
-    );
-  });
-
-  it('usa fallback por link de editar legenda quando script _omq não possui dados', async () => {
-    const httpClient = createHttpClientMock();
-    const useCase = new GetSyncedLyricsUseCase(httpClient);
-
-    vi.mocked(httpClient.getCookies)
-      .mockResolvedValueOnce(['login=123'])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
-    vi.mocked(httpClient.postJson).mockResolvedValueOnce({
-      status: 200,
-      data: {
-        data: {
-          viewer: {
-            isSessionValid: true
-          }
-        }
-      }
-    });
-    vi.mocked(httpClient.get)
-      .mockResolvedValueOnce({
-        status: 200,
-        data: createPublicPageWithEditLink()
-      })
-      .mockResolvedValueOnce({
-        status: 200,
-        data: createLegSincHtml(22)
-      });
-
-    await useCase.execute({
-      url: 'https://www.letras.mus.br/casa-worship/a-casa-e-sua/'
-    });
-
-    expect(vi.mocked(httpClient.get).mock.calls[1]?.[0]).toBe(
-      'https://www.letras.mus.br/contribuicoes/corrigir_legenda/casa-worship/a-casa-e-sua/5QHF5OQeFOs/'
-    );
-  });
-
-  it('extrai 22 linhas do #leg_sinc usando rel/value e captura hidden metadata', async () => {
-    const httpClient = createHttpClientMock();
-    const useCase = new GetSyncedLyricsUseCase(httpClient);
-
-    vi.mocked(httpClient.getCookies)
-      .mockResolvedValueOnce(['login=123'])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
-    vi.mocked(httpClient.postJson).mockResolvedValueOnce({
-      status: 200,
-      data: {
-        data: {
-          viewer: {
-            isSessionValid: true
-          }
-        }
-      }
-    });
-    vi.mocked(httpClient.get).mockResolvedValueOnce({
-      status: 200,
-      data: createLegSincHtml(22)
-    });
 
     const result = await useCase.execute({
-      url: 'https://www.letras.mus.br/contribuicoes/corrigir_legenda/felipe-rodrigues/tudo-e-perda/qxzQR5uwWsk/'
+      url: 'https://www.letras.mus.br/casa-worship/a-casa-e-sua/'
     });
 
-    expect(result.lines).toHaveLength(22);
-    expect(result.lines[0]).toEqual({ start: '21.8', end: '31.1', text: 'Linha 1' });
-    expect(result.lines[21]).toEqual({ start: '42.8', end: '52.1', text: 'Linha 22' });
+    expect(result.lines).toHaveLength(2);
     expect(result.hidden).toEqual({ song_id: '111', video_id: '222', subtitle_id: '333' });
+    expect(vi.mocked(httpClient.get).mock.calls[1]?.[0]).toBe(
+      'https://www.letras.mus.br/contribuicoes/corrigir_legenda/casa-worship/a-casa-e-sua/5QHF5OQeFOs/'
+    );
   });
 
-  it('retorna unauthorized quando HTML indica redirecionamento para login', async () => {
+  it('usa ID numérico quando URL é slug para consultar subtitle público (regressão ariana-grande)', async () => {
     const httpClient = createHttpClientMock();
     const useCase = new GetSyncedLyricsUseCase(httpClient);
 
-    vi.mocked(httpClient.getCookies)
-      .mockResolvedValueOnce(['login=123'])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
-    vi.mocked(httpClient.postJson).mockResolvedValueOnce({
-      status: 200,
-      data: {
+    vi.mocked(httpClient.get)
+      .mockResolvedValueOnce({
+        status: 200,
+        data: createPublicPageWithSlugUrlAndNumericIdMeta()
+      })
+      .mockResolvedValueOnce({
+        status: 200,
         data: {
-          viewer: {
-            isSessionValid: true
+          Original: {
+            VideoID: 'gl1aHhXnN1k',
+            Subtitle: JSON.stringify([
+              ['Thought I\'d end up with Sean', '46.8', '49.0'],
+              ['But he wasn\'t a match', '49.1', '51.2']
+            ])
           }
         }
-      }
-    });
-    vi.mocked(httpClient.get).mockResolvedValueOnce({
-      status: 200,
-      data: `
-        <html>
-          <body>
-            <form id="ccid_form" action="/contribuicoes/entrar/">
-              <input name="email" />
-              <input name="password" type="password" />
-              <button type="submit">Entrar</button>
-            </form>
-          </body>
-        </html>
-      `
+      });
+
+    const result = await useCase.execute({
+      url: 'https://www.letras.mus.br/ariana-grande/thank-u-next/'
     });
 
-    await expect(
-      useCase.execute({
-        url: 'https://www.letras.mus.br/contribuicoes/corrigir_legenda/felipe-rodrigues/tudo-e-perda/qxzQR5uwWsk/'
-      })
-    ).rejects.toMatchObject({ statusCode: 401 });
+    expect(result.lines).toHaveLength(2);
+    expect(result.video_url).toBe('https://www.youtube.com/watch?v=gl1aHhXnN1k');
+    expect(vi.mocked(httpClient.get).mock.calls[1]?.[0]).toBe(
+      'https://www.letras.mus.br/api/v2/subtitle/3074298/gl1aHhXnN1k/'
+    );
   });
 
-  it('retorna unauthorized quando não há cookies de sessão em nenhum domínio', async () => {
+  it('usa lista de vídeos candidatos quando YoutubeID inicial está vazio (regressão linkin-park)', async () => {
     const httpClient = createHttpClientMock();
     const useCase = new GetSyncedLyricsUseCase(httpClient);
 
-    vi.mocked(httpClient.getCookies)
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
-
-    await expect(
-      useCase.execute({
-        url: 'https://www.letras.mus.br/contribuicoes/corrigir_legenda/felipe-rodrigues/tudo-e-perda/qxzQR5uwWsk/'
+    vi.mocked(httpClient.get)
+      .mockResolvedValueOnce({
+        status: 200,
+        data: createPublicPageWithEmptyYoutubeAndNumericSong()
       })
-    ).rejects.toMatchObject({ statusCode: 401 });
-  });
-
-  it('retorna 404 quando HTML autenticado não contém o bloco #leg_sinc esperado', async () => {
-    const httpClient = createHttpClientMock();
-    const useCase = new GetSyncedLyricsUseCase(httpClient);
-
-    vi.mocked(httpClient.getCookies)
-      .mockResolvedValueOnce(['login=123'])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
-    vi.mocked(httpClient.postJson).mockResolvedValueOnce({
-      status: 200,
-      data: {
+      .mockResolvedValueOnce({
+        status: 200,
+        data: ['rKdgl8OUKpk', 'SdvWgoWnnQM']
+      })
+      .mockResolvedValueOnce({
+        status: 200,
         data: {
-          viewer: {
-            isSessionValid: true
+          Original: {
+            VideoID: 'rKdgl8OUKpk',
+            Subtitle: JSON.stringify([
+              ['I watch how the moon sits in the sky', '10.0', '13.0'],
+              ['In the dark night, shining with the light from the sun', '13.2', '18.0']
+            ])
           }
         }
-      }
+      });
+
+    const result = await useCase.execute({
+      url: 'https://www.letras.mus.br/linkin-park/65985/'
     });
 
-    vi.mocked(httpClient.get).mockResolvedValueOnce({
-      status: 200,
-      data: `
-        <html>
-          <body>
-            <div>sem bloco de legenda sincronizada</div>
-          </body>
-        </html>
-      `
+    expect(result.lines).toHaveLength(2);
+    expect(result.video_url).toBe('https://www.youtube.com/watch?v=rKdgl8OUKpk');
+    expect(vi.mocked(httpClient.get).mock.calls[1]?.[0]).toBe('https://www.letras.mus.br/api/v2/subtitle/65985/');
+    expect(vi.mocked(httpClient.get).mock.calls[2]?.[0]).toBe(
+      'https://www.letras.mus.br/api/v2/subtitle/65985/rKdgl8OUKpk/'
+    );
+  });
+
+  it('aceita URL de contribuição e resolve para página pública antes de consultar subtitle público', async () => {
+    const httpClient = createHttpClientMock();
+    const useCase = new GetSyncedLyricsUseCase(httpClient);
+
+    vi.mocked(httpClient.get)
+      .mockResolvedValueOnce({
+        status: 200,
+        data: createPublicPageWithSubtitleMeta()
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        data: createSubtitlePayload()
+      });
+
+    await useCase.execute({
+      url: 'https://www.letras.mus.br/contribuicoes/corrigir_legenda/casa-worship/a-casa-e-sua/5QHF5OQeFOs/'
     });
+
+    expect(vi.mocked(httpClient.get).mock.calls[0]?.[0]).toBe(
+      'https://www.letras.mus.br/casa-worship/a-casa-e-sua/'
+    );
+  });
+
+  it('retorna 404 quando endpoint público não possui linhas válidas', async () => {
+    const httpClient = createHttpClientMock();
+    const useCase = new GetSyncedLyricsUseCase(httpClient);
+
+    vi.mocked(httpClient.get)
+      .mockResolvedValueOnce({
+        status: 200,
+        data: createPublicPageWithSubtitleMeta()
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        data: { data: { subtitles: { editar: [] } } }
+      });
 
     await expect(
       useCase.execute({
-        url: 'https://www.letras.mus.br/contribuicoes/corrigir_legenda/felipe-rodrigues/tudo-e-perda/qxzQR5uwWsk/'
+        url: 'https://www.letras.mus.br/casa-worship/a-casa-e-sua/'
       })
     ).rejects.toMatchObject({ statusCode: 404 });
   });
 
-  it('extrai linhas do payload ui/subtitles quando lista do #lsin_ls não está populada', async () => {
+  it('retorna 502 quando endpoint público falha', async () => {
     const httpClient = createHttpClientMock();
     const useCase = new GetSyncedLyricsUseCase(httpClient);
 
-    vi.mocked(httpClient.getCookies)
-      .mockResolvedValueOnce(['login=123'])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
-    vi.mocked(httpClient.postJson).mockResolvedValueOnce({
-      status: 200,
-      data: {
-        data: {
-          viewer: {
-            isSessionValid: true
-          }
-        }
-      }
-    });
-
-    vi.mocked(httpClient.get).mockResolvedValueOnce({
-      status: 200,
-      data: `
-        <html>
-          <body>
-            <form id="leg_sinc">
-              <ul id="lsin_ls"><li id="lsin_h">header</li></ul>
-            </form>
-            <script>
-              _omq.push(['ui/subtitles', {"editar":[["Linha 1","21.8","31.1"],["Linha 2","32.2","40.5"]]}]);
-            </script>
-          </body>
-        </html>
-      `,
-      headers: {
-        'content-length': '3200'
-      }
-    });
-
-    const result = await useCase.execute({
-      url: 'https://www.letras.mus.br/contribuicoes/corrigir_legenda/felipe-rodrigues/tudo-e-perda/qxzQR5uwWsk/'
-    });
-
-    expect(result.lines).toEqual(
-      expect.arrayContaining([
-        { start: '21.8', end: '31.1', text: 'Linha 1' },
-        { start: '32.2', end: '40.5', text: 'Linha 2' }
-      ])
-    );
-  });
-
-  it('retorna unauthorized quando sessão está inválida no accounts/graphql', async () => {
-    const httpClient = createHttpClientMock();
-    const useCase = new GetSyncedLyricsUseCase(httpClient);
-
-    vi.mocked(httpClient.getCookies)
-      .mockResolvedValueOnce(['login=123'])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
-
-    vi.mocked(httpClient.postJson).mockResolvedValueOnce({
-      status: 200,
-      data: {
-        data: {
-          viewer: {
-            isSessionValid: false
-          }
-        }
-      }
-    });
+    vi.mocked(httpClient.get)
+      .mockResolvedValueOnce({
+        status: 200,
+        data: createPublicPageWithSubtitleMeta()
+      })
+      .mockResolvedValueOnce({
+        status: 503,
+        data: {}
+      });
 
     await expect(
       useCase.execute({
-        url: 'https://www.letras.mus.br/contribuicoes/corrigir_legenda/felipe-rodrigues/tudo-e-perda/qxzQR5uwWsk/'
+        url: 'https://www.letras.mus.br/casa-worship/a-casa-e-sua/'
       })
-    ).rejects.toMatchObject({ statusCode: 401 });
+    ).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it('retorna 404 quando fallback de contribuição responde página de login', async () => {
+    const httpClient = createHttpClientMock();
+    const useCase = new GetSyncedLyricsUseCase(httpClient);
+
+    vi.mocked(httpClient.get)
+      .mockResolvedValueOnce({
+        status: 200,
+        data: createPublicPageWithContributionMeta()
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        data: `
+          <html>
+            <body>
+              <form id="ccid_form" action="/contribuicoes/entrar/">
+                <input name="email" />
+                <input name="password" type="password" />
+                <button type="submit">Entrar</button>
+              </form>
+            </body>
+          </html>
+        `
+      });
+
+    await expect(
+      useCase.execute({
+        url: 'https://www.letras.mus.br/casa-worship/a-casa-e-sua/'
+      })
+    ).rejects.toMatchObject({ statusCode: 404 });
   });
 
   it('retorna 404 quando página pública da música não existe', async () => {
@@ -409,22 +346,6 @@ describe('GetSyncedLyricsUseCase', () => {
     vi.mocked(httpClient.get).mockResolvedValueOnce({
       status: 404,
       data: '<html></html>'
-    });
-
-    await expect(
-      useCase.execute({
-        url: 'https://www.letras.mus.br/casa-worship/a-casa-e-sua/'
-      })
-    ).rejects.toMatchObject({ statusCode: 404 });
-  });
-
-  it('retorna 404 quando não encontra dados para montar URL de legenda sincronizada', async () => {
-    const httpClient = createHttpClientMock();
-    const useCase = new GetSyncedLyricsUseCase(httpClient);
-
-    vi.mocked(httpClient.get).mockResolvedValueOnce({
-      status: 200,
-      data: '<html><body><div>sem dados</div></body></html>'
     });
 
     await expect(

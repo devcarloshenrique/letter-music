@@ -1,9 +1,6 @@
 import { load } from 'cheerio';
-import { AppError, AuthSessionExpiredError } from '../../../shared/errors/app-error';
+import { AppError } from '../../../shared/errors/app-error';
 import {
-  ACCOUNTS_CIFRACLUB_BASE_URL,
-  ACCOUNTS_GRAPHQL_URL,
-  ACCOUNTS_LETRAS_BASE_URL,
   LETRAS_BASE_URL,
   LETRAS_BROWSER_HEADERS
 } from '../../../shared/infra/http/letras-request';
@@ -15,18 +12,11 @@ import type {
   SyncedLyricsHiddenMetaDto
 } from './get-synced-lyrics.dto';
 
-type SessionCheckResponse = {
-  data?: {
-    viewer?: {
-      isSessionValid?: boolean;
-    };
-  };
-};
-
 type SyncedLyricsSongMeta = {
   dns: string;
   url: string;
   youtubeId: string;
+  musicId?: string;
 };
 
 function dedupe(lines: SyncedLyricLineDto[]): SyncedLyricLineDto[] {
@@ -182,10 +172,13 @@ function normalizeMetaValue(raw: unknown): string {
 }
 
 function buildMetaCandidateFromPayload(payload: Record<string, unknown>): SyncedLyricsSongMeta {
+  const urlValue = normalizeMetaValue(payload.URL);
+  const numericId = normalizeMetaValue(payload.ID);
   return {
     dns: normalizeMetaValue(payload.DNS),
-    url: normalizeMetaValue(payload.URL),
-    youtubeId: normalizeMetaValue(payload.YoutubeID ?? payload.youtubeID)
+    url: urlValue,
+    youtubeId: normalizeMetaValue(payload.YoutubeID ?? payload.youtubeID),
+    musicId: /^\d+$/.test(urlValue) ? urlValue : /^\d+$/.test(numericId) ? numericId : undefined
   };
 }
 
@@ -271,6 +264,210 @@ function buildContributionUrlFromMeta(meta: SyncedLyricsSongMeta): string {
     `/contribuicoes/corrigir_legenda/${meta.dns}/${meta.url}/${meta.youtubeId}/`,
     LETRAS_BASE_URL
   ).toString();
+}
+
+function extractSubtitleMetaFromScript(scriptRaw: string): Pick<SyncedLyricsSongMeta, 'musicId' | 'youtubeId'> | null {
+  const youtubeMatch = scriptRaw.match(/"YoutubeID"\s*:\s*"([^"]*)"/i);
+  const musicIdByUrlMatch = scriptRaw.match(/"URL"\s*:\s*"(\d+)"/i);
+  const musicIdByIdMatch = scriptRaw.match(/"ID"\s*:\s*(\d+)/i);
+
+  const youtubeId = normalizeMetaValue(youtubeMatch?.[1]);
+  const musicId = normalizeMetaValue(musicIdByUrlMatch?.[1] ?? musicIdByIdMatch?.[1]);
+
+  if (!musicId) {
+    return null;
+  }
+
+  return {
+    musicId,
+    youtubeId: youtubeId || undefined
+  };
+}
+
+function extractSubtitleMetaFromPublicPage(html: string): Pick<SyncedLyricsSongMeta, 'musicId' | 'youtubeId'> | null {
+  const $ = load(html);
+
+  const scriptContents = $('script')
+    .toArray()
+    .map((element) => $(element).html() ?? '');
+
+  for (const scriptRaw of scriptContents) {
+    const identifiers = extractSubtitleMetaFromScript(scriptRaw);
+    if (identifiers) {
+      return identifiers;
+    }
+  }
+
+  return null;
+}
+
+function buildPublicSubtitleEndpoint(musicId: string, youtubeId: string): string {
+  return new URL(`/api/v2/subtitle/${musicId}/${youtubeId}/`, LETRAS_BASE_URL).toString();
+}
+
+function buildPublicSubtitleCandidatesEndpoint(musicId: string): string {
+  return new URL(`/api/v2/subtitle/${musicId}/`, LETRAS_BASE_URL).toString();
+}
+
+function extractYoutubeCandidates(payload: unknown): string[] {
+  if (!Array.isArray(payload)) {
+    return [];
+  }
+
+  const candidates = payload
+    .map((item) => normalizeMetaValue(item))
+    .filter((value) => value.length > 0);
+
+  return Array.from(new Set(candidates));
+}
+
+function readStringField(record: Record<string, unknown>, candidates: string[]): string {
+  for (const key of candidates) {
+    const value = record[key];
+    if (typeof value === 'string' && value.trim()) {
+      return normalizeLyricText(value);
+    }
+  }
+
+  return '';
+}
+
+function toSubtitleRows(input: unknown): Array<[string, string, string]> {
+  if (!Array.isArray(input)) {
+    return [];
+  }
+
+  const rows: Array<[string, string, string]> = [];
+
+  for (const item of input) {
+    if (Array.isArray(item) && item.length >= 3) {
+      rows.push([String(item[0] ?? ''), String(item[1] ?? ''), String(item[2] ?? '')]);
+      continue;
+    }
+
+    if (item && typeof item === 'object' && !Array.isArray(item)) {
+      const record = item as Record<string, unknown>;
+      const text = readStringField(record, ['text', 'lyric', 'line', 'value']);
+      const start = readStringField(record, ['start', 'from', 'startTime', 'initial']);
+      const end = readStringField(record, ['end', 'to', 'endTime', 'final']);
+
+      if (text && start && end) {
+        rows.push([text, start, end]);
+      }
+    }
+  }
+
+  return rows;
+}
+
+function parseSubtitleRowsFromString(raw: string): Array<[string, string, string]> {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    return toSubtitleRows(parsed);
+  } catch {
+    return [];
+  }
+}
+
+function extractSubtitleRowsFromUnknown(payload: unknown, depth = 0): Array<[string, string, string]> {
+  if (depth > 5 || payload == null) {
+    return [];
+  }
+
+  if (typeof payload === 'string') {
+    return parseSubtitleRowsFromString(payload);
+  }
+
+  const directRows = toSubtitleRows(payload);
+  if (directRows.length > 0) {
+    return directRows;
+  }
+
+  if (Array.isArray(payload)) {
+    for (const item of payload) {
+      const nestedRows = extractSubtitleRowsFromUnknown(item, depth + 1);
+      if (nestedRows.length > 0) {
+        return nestedRows;
+      }
+    }
+    return [];
+  }
+
+  if (typeof payload === 'object') {
+    const record = payload as Record<string, unknown>;
+    const subtitleStringRows = parseSubtitleRowsFromString(readStringField(record, ['Subtitle', 'subtitle']));
+    if (subtitleStringRows.length > 0) {
+      return subtitleStringRows;
+    }
+
+    const prioritizedKeys = ['Original', 'Translation', 'editar', 'subtitles', 'lines', 'lyrics', 'data', 'Subtitle', 'subtitle'];
+
+    for (const key of prioritizedKeys) {
+      const nested = record[key];
+      const nestedRows = extractSubtitleRowsFromUnknown(nested, depth + 1);
+      if (nestedRows.length > 0) {
+        return nestedRows;
+      }
+    }
+
+    for (const nested of Object.values(record)) {
+      const nestedRows = extractSubtitleRowsFromUnknown(nested, depth + 1);
+      if (nestedRows.length > 0) {
+        return nestedRows;
+      }
+    }
+  }
+
+  return [];
+}
+
+function extractVideoUrlFromPayload(payload: unknown): string | undefined {
+  if (payload == null) {
+    return undefined;
+  }
+
+  if (typeof payload === 'object' && !Array.isArray(payload)) {
+    const record = payload as Record<string, unknown>;
+    const youtubeId = readStringField(record, [
+      'youtube_id',
+      'youtubeId',
+      'YoutubeID',
+      'video_id',
+      'videoId',
+      'VideoID'
+    ]);
+    if (youtubeId) {
+      return `https://www.youtube.com/watch?v=${youtubeId}`;
+    }
+
+    const fullVideoUrl = readStringField(record, ['video_url', 'videoUrl', 'youtube_url', 'youtubeUrl']);
+    if (fullVideoUrl) {
+      return fullVideoUrl;
+    }
+
+    for (const nested of Object.values(record)) {
+      const fromNested = extractVideoUrlFromPayload(nested);
+      if (fromNested) {
+        return fromNested;
+      }
+    }
+  }
+
+  if (Array.isArray(payload)) {
+    for (const item of payload) {
+      const fromNested = extractVideoUrlFromPayload(item);
+      if (fromNested) {
+        return fromNested;
+      }
+    }
+  }
+
+  return undefined;
 }
 
 function extractFromUiSubtitlesPayload(script: string, lines: SyncedLyricLineDto[]): void {
@@ -362,24 +559,12 @@ export class GetSyncedLyricsUseCase {
     }
   }
 
-  private async resolveSyncedLyricsUrl(parsedUrl: URL): Promise<URL> {
+  private async resolveSyncedLyricsUrl(parsedUrl: URL, prefetchedHtml?: string): Promise<URL> {
     if (parsedUrl.pathname.includes('/contribuicoes/corrigir_legenda/')) {
       return parsedUrl;
     }
 
-    const songPageResponse = await this.httpClient.get<string>(parsedUrl.toString(), {
-      ...LETRAS_BROWSER_HEADERS
-    });
-
-    if (songPageResponse.status === 404) {
-      throw new AppError('Página da música não encontrada no letras.mus.br.', 404);
-    }
-
-    if (songPageResponse.status >= 400) {
-      throw new AppError('Falha ao consultar página pública da música.', 502);
-    }
-
-    const html = String(songPageResponse.data ?? '');
+    const html = prefetchedHtml ?? (await this.fetchPublicPageHtml(parsedUrl));
 
     const meta = extractSongMetaFromPublicPage(html);
     if (hasCompleteSongMeta(meta)) {
@@ -397,58 +582,130 @@ export class GetSyncedLyricsUseCase {
     );
   }
 
-  async execute(input: GetSyncedLyricsInputDto): Promise<GetSyncedLyricsOutputDto> {
-    if (!input.url || input.url.trim().length === 0) {
-      throw new AppError('Parâmetro "url" é obrigatório.', 400);
+  private buildSongUrlFromContributionUrl(parsedUrl: URL): URL | null {
+    if (!parsedUrl.pathname.includes('/contribuicoes/corrigir_legenda/')) {
+      return null;
     }
 
-    const parsedUrl = this.parseAndValidateInputUrl(input.url);
-    const syncedLyricsUrl = await this.resolveSyncedLyricsUrl(parsedUrl);
+    const segments = parsedUrl.pathname.split('/').filter(Boolean);
+    const markerIndex = segments.findIndex((segment) => segment === 'corrigir_legenda');
 
-    const cookies = [
-      ...(await this.httpClient.getCookies(LETRAS_BASE_URL)),
-      ...(await this.httpClient.getCookies(ACCOUNTS_LETRAS_BASE_URL)),
-      ...(await this.httpClient.getCookies(ACCOUNTS_CIFRACLUB_BASE_URL))
-    ];
-
-    if (cookies.length === 0) {
-      throw new AuthSessionExpiredError('Sessão não autenticada. Realize login antes de consultar legendas.');
+    if (markerIndex < 0 || segments.length < markerIndex + 3) {
+      return null;
     }
 
-    const sessionCheckResponse = await this.httpClient.postJson<SessionCheckResponse>(
-      ACCOUNTS_GRAPHQL_URL,
-      {
-        query: `
-          query {
-            viewer {
-              isSessionValid
-            }
-          }
-        `
-      },
-      {
-        ...LETRAS_BROWSER_HEADERS
-      }
-    );
-
-    const isSessionValid = sessionCheckResponse.data.data?.viewer?.isSessionValid;
-    if (!isSessionValid) {
-      throw new AuthSessionExpiredError('Sessão expirada ou usuário não autenticado.');
+    const dns = segments[markerIndex + 1];
+    const songSlug = segments[markerIndex + 2];
+    if (!dns || !songSlug) {
+      return null;
     }
 
-    const response = await this.httpClient.get<string>(syncedLyricsUrl.toString(), {
+    return new URL(`/${dns}/${songSlug}/`, LETRAS_BASE_URL);
+  }
+
+  private async fetchPublicPageHtml(parsedUrl: URL): Promise<string> {
+    const songUrl = this.buildSongUrlFromContributionUrl(parsedUrl) ?? parsedUrl;
+
+    const songPageResponse = await this.httpClient.get<string>(songUrl.toString(), {
       ...LETRAS_BROWSER_HEADERS
     });
 
-    const contentLengthHeaderRaw = response.headers?.['content-length'];
-    const contentLengthHeader = Array.isArray(contentLengthHeaderRaw)
-      ? contentLengthHeaderRaw[0]
-      : contentLengthHeaderRaw;
-    const htmlLength = String(response.data ?? '').length;
-    // eslint-disable-next-line no-console
-    console.log(
-      `[get-synced-lyrics] status=${response.status} content-length=${contentLengthHeader ?? 'n/a'} body-length=${htmlLength}`
-    );
+    if (songPageResponse.status === 404) {
+      throw new AppError('Página da música não encontrada no letras.mus.br.', 404);
+    }
+
+    if (songPageResponse.status >= 400) {
+      throw new AppError('Falha ao consultar página pública da música.', 502);
+    }
+
+    return String(songPageResponse.data ?? '');
+  }
+
+  private async fetchPublicSubtitle(
+    meta: Pick<SyncedLyricsSongMeta, 'musicId' | 'youtubeId'>
+  ): Promise<Pick<GetSyncedLyricsOutputDto, 'lines' | 'video_url'>> {
+    const musicId = normalizeMetaValue(meta.musicId);
+    const initialYoutubeId = normalizeMetaValue(meta.youtubeId);
+
+    if (!musicId) {
+      throw new AppError('Não foi possível identificar dados públicos da legenda sincronizada.', 404);
+    }
+
+    const youtubeCandidates: string[] = [];
+    if (initialYoutubeId) {
+      youtubeCandidates.push(initialYoutubeId);
+    }
+
+    if (youtubeCandidates.length === 0) {
+      const candidatesResponse = await this.httpClient.get<unknown>(
+        buildPublicSubtitleCandidatesEndpoint(musicId),
+        {
+          ...LETRAS_BROWSER_HEADERS
+        }
+      );
+
+      if (candidatesResponse.status >= 400 && candidatesResponse.status !== 404) {
+        throw new AppError('Falha ao consultar endpoint público de legenda sincronizada.', 502);
+      }
+
+      for (const candidate of extractYoutubeCandidates(candidatesResponse.data)) {
+        if (!youtubeCandidates.includes(candidate)) {
+          youtubeCandidates.push(candidate);
+        }
+      }
+    }
+
+    if (youtubeCandidates.length === 0) {
+      throw new AppError('Legenda sincronizada não disponível para esta música.', 404);
+    }
+
+    let hasUpstreamFailure = false;
+
+    for (const youtubeId of youtubeCandidates) {
+      const subtitleEndpoint = buildPublicSubtitleEndpoint(musicId, youtubeId);
+      const subtitleResponse = await this.httpClient.get<unknown>(subtitleEndpoint, {
+        ...LETRAS_BROWSER_HEADERS
+      });
+
+      if (subtitleResponse.status === 404) {
+        continue;
+      }
+
+      if (subtitleResponse.status >= 400) {
+        hasUpstreamFailure = true;
+        continue;
+      }
+
+      const parsedRows = extractSubtitleRowsFromUnknown(subtitleResponse.data);
+      const lines: SyncedLyricLineDto[] = [];
+
+      for (const [textRaw, startRaw, endRaw] of parsedRows) {
+        pushLine(lines, startRaw, endRaw, textRaw);
+      }
+
+      const deduped = dedupe(lines);
+      if (deduped.length === 0) {
+        continue;
+      }
+
+      return {
+        lines: deduped,
+        video_url: extractVideoUrlFromPayload(subtitleResponse.data) ?? `https://www.youtube.com/watch?v=${youtubeId}`
+      };
+    }
+
+    if (hasUpstreamFailure) {
+      throw new AppError('Falha ao consultar endpoint público de legenda sincronizada.', 502);
+    }
+
+    throw new AppError('Não foi possível extrair legendas sincronizadas da resposta pública.', 404);
+  }
+
+  private async fetchFromContributionPage(parsedUrl: URL, prefetchedHtml?: string): Promise<GetSyncedLyricsOutputDto> {
+    const syncedLyricsUrl = await this.resolveSyncedLyricsUrl(parsedUrl, prefetchedHtml);
+    const response = await this.httpClient.get<string>(syncedLyricsUrl.toString(), {
+      ...LETRAS_BROWSER_HEADERS
+    });
 
     if (response.status >= 400) {
       throw new AppError('Falha ao consultar página de legenda sincronizada.', 502);
@@ -456,8 +713,9 @@ export class GetSyncedLyricsUseCase {
 
     const html = String(response.data ?? '');
     if (isLoginPage(html)) {
-      throw new AuthSessionExpiredError('Sessão expirada ou usuário não autenticado.');
+      throw new AppError('Legendas sincronizadas não estão disponíveis sem autenticação para esta URL.', 404);
     }
+
     const $ = load(html);
     const hidden = readHiddenMeta($);
     const videoUrl = hidden?.video_id ? `https://www.youtube.com/watch?v=${hidden.video_id}` : undefined;
@@ -490,5 +748,27 @@ export class GetSyncedLyricsUseCase {
       video_url: videoUrl,
       hidden
     };
+  }
+
+  async execute(input: GetSyncedLyricsInputDto): Promise<GetSyncedLyricsOutputDto> {
+    if (!input.url || input.url.trim().length === 0) {
+      throw new AppError('Parâmetro "url" é obrigatório.', 400);
+    }
+
+    const parsedUrl = this.parseAndValidateInputUrl(input.url);
+
+    const publicPageHtml = await this.fetchPublicPageHtml(parsedUrl);
+    const subtitleMeta = extractSubtitleMetaFromPublicPage(publicPageHtml);
+
+    if (subtitleMeta) {
+      const subtitleResult = await this.fetchPublicSubtitle(subtitleMeta);
+      return {
+        lines: subtitleResult.lines,
+        video_url: subtitleResult.video_url,
+        hidden: null
+      };
+    }
+
+    return this.fetchFromContributionPage(parsedUrl, publicPageHtml);
   }
 }

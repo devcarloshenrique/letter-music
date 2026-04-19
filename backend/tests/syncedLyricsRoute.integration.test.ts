@@ -1,43 +1,14 @@
 import request from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-function createLegSincHtml(linesCount = 22): string {
-  const items = Array.from({ length: linesCount }, (_, index) => {
-    const start = (21.8 + index).toFixed(1);
-    const end = (31.1 + index).toFixed(1);
-    const text = `Linha ${index + 1}`;
-
-    return `
-      <li class="lineItem">
-        <input class="time start" rel="${start}" />
-        <input class="time end" rel="${end}" />
-        <input class="legenda" value="${text}" />
-      </li>
-    `;
-  }).join('');
-
-  return `
-    <html>
-      <body>
-        <form id="leg_sinc">
-          <input type="hidden" name="song_id" value="111" />
-          <input type="hidden" name="video_id" value="222" />
-          <input type="hidden" name="subtitle_id" value="333" />
-          <ul id="lsin_ls">${items}</ul>
-        </form>
-      </body>
-    </html>
-  `;
-}
-
-function createPublicPageWithUiLyricScript(): string {
+function createPublicPageWithSubtitleMeta(): string {
   return `
     <html>
       <body>
         <script>
-          _omq.push(['ui/lyric', {
+          _omq.push(['ui/player', {
             "DNS":"felipe-rodrigues",
-            "URL":"tudo-e-perda",
+            "URL":"12772",
             "YoutubeID":"qxzQR5uwWsk"
           }]);
         </script>
@@ -66,35 +37,26 @@ describe('GET /api/lyrics/synced (integration)', () => {
     vi.resetAllMocks();
   });
 
-  it('retorna envelope success/data/metadata com 22 linhas extraídas', async () => {
-    mockHttpClient.getCookies
-      .mockResolvedValueOnce(['session=abc'])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
-
-    mockHttpClient.postJson.mockResolvedValueOnce({
-      status: 200,
-      data: {
-        data: {
-          viewer: {
-            isSessionValid: true
-          }
-        }
-      },
-      headers: {}
-    });
-
+  it('retorna envelope success/data/metadata sem exigir sessão', async () => {
     mockHttpClient.get
       .mockResolvedValueOnce({
         status: 200,
-        data: createPublicPageWithUiLyricScript(),
+        data: createPublicPageWithSubtitleMeta(),
         headers: {
           'content-length': '1500'
         }
       })
       .mockResolvedValueOnce({
         status: 200,
-        data: createLegSincHtml(22),
+        data: {
+          Original: {
+            VideoID: 'qxzQR5uwWsk',
+            Subtitle: JSON.stringify([
+              ['Linha 1', '21.8', '31.1'],
+              ['Linha 2', '32.2', '40.5']
+            ])
+          }
+        },
         headers: {
           'content-length': '9500'
         }
@@ -110,13 +72,15 @@ describe('GET /api/lyrics/synced (integration)', () => {
     expect(response.body.success).toBe(true);
     expect(response.body.message).toBe('Legenda sincronizada extraída com sucesso.');
     expect(Array.isArray(response.body.data.lines)).toBe(true);
-    expect(response.body.data.lines).toHaveLength(22);
+    expect(response.body.data.lines).toHaveLength(2);
     expect(response.body.data.lines[0]).toEqual({ start: '21.8', end: '31.1', text: 'Linha 1' });
-    expect(response.body.data.video_url).toBe('https://www.youtube.com/watch?v=222');
+    expect(response.body.data.video_url).toBe('https://www.youtube.com/watch?v=qxzQR5uwWsk');
     expect(response.body.metadata).toBeDefined();
     expect(typeof response.body.metadata.timestamp).toBe('string');
     expect(response.body.metadata.path).toBe('/api/lyrics/synced');
-    expect(response.body.metadata.hidden).toEqual({ song_id: '111', video_id: '222', subtitle_id: '333' });
+    expect(response.body.metadata.hidden).toBeNull();
+    expect(mockHttpClient.getCookies).not.toHaveBeenCalled();
+    expect(mockHttpClient.postJson).not.toHaveBeenCalled();
   });
 
   it('retorna erro estruturado quando query url não é enviada', async () => {
@@ -129,19 +93,22 @@ describe('GET /api/lyrics/synced (integration)', () => {
     expect(response.body.error.message).toContain('Parâmetro "url" é obrigatório');
   });
 
-  it('retorna erro estruturado quando sessão não está autenticada', async () => {
-    mockHttpClient.getCookies
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
-
-    mockHttpClient.get.mockResolvedValueOnce({
-      status: 200,
-      data: createPublicPageWithUiLyricScript(),
-      headers: {
-        'content-length': '1500'
-      }
-    });
+  it('retorna erro estruturado quando subtitle público não existe', async () => {
+    mockHttpClient.get
+      .mockResolvedValueOnce({
+        status: 200,
+        data: createPublicPageWithSubtitleMeta(),
+        headers: {
+          'content-length': '1500'
+        }
+      })
+      .mockResolvedValueOnce({
+        status: 404,
+        data: {},
+        headers: {
+          'content-length': '0'
+        }
+      });
 
     const response = await request(app)
       .get('/api/lyrics/synced')
@@ -149,9 +116,9 @@ describe('GET /api/lyrics/synced (integration)', () => {
         url: 'https://www.letras.mus.br/felipe-rodrigues/tudo-e-perda/'
       });
 
-    expect(response.status).toBe(401);
+    expect(response.status).toBe(404);
     expect(response.body.success).toBe(false);
-    expect(response.body.error.code).toBe('AUTH_SESSION_EXPIRED');
-    expect(response.body.error.message).toContain('Sessão não autenticada');
+    expect(response.body.error.code).toBe('APP_ERROR');
+    expect(response.body.error.message).toContain('Não foi possível extrair legendas sincronizadas da resposta pública');
   });
 });
