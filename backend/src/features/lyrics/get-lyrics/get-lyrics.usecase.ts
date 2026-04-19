@@ -1,7 +1,6 @@
 import { AppError } from '../../../shared/errors/app-error';
 import type {
   ILyricsSearchProvider,
-  SearchLyricsOutput,
   ScrapedLyricsSearchResult
 } from '../../../shared/providers/scraping/iser-scraping.provider';
 import type { GetLyricsInputDto, GetLyricsOutputDto, GetLyricsSongDto } from './get-lyrics.dto';
@@ -11,8 +10,20 @@ const BLOCKED_PATH_MARKERS = ['/significado', '/aprenda-ingles'];
 const MIN_PAGE = 1;
 const PAGE_SIZE = 10;
 
+type FilteredSongsOutput = {
+  songs: GetLyricsSongDto[];
+  hasTechnicalFailures: boolean;
+};
+
+export interface ISyncedLyricsAvailabilityProvider {
+  hasSyncedLyrics(url: string): Promise<boolean>;
+}
+
 export class GetLyricsUseCase {
-  constructor(private readonly searchProvider: ILyricsSearchProvider) {}
+  constructor(
+    private readonly searchProvider: ILyricsSearchProvider,
+    private readonly syncedLyricsAvailabilityProvider?: ISyncedLyricsAvailabilityProvider
+  ) {}
 
   async execute(input: GetLyricsInputDto): Promise<GetLyricsOutputDto> {
     const query = input.q?.trim() ?? '';
@@ -25,10 +36,13 @@ export class GetLyricsUseCase {
     }
 
     const page = this.parseAndValidatePage(input.page);
-    const searchOutput = await this.searchWithFallback(query, page);
-    const songs = this.normalizeAndFilterResults(searchOutput.results);
+    const { songs, hasTechnicalFailures } = await this.searchWithFallback(query, page);
 
     if (songs.length === 0) {
+      if (hasTechnicalFailures) {
+        throw new AppError('Falha ao validar disponibilidade de legendas sincronizadas.', 502);
+      }
+
       if (page > 1) {
         return {
           songs: [],
@@ -67,17 +81,23 @@ export class GetLyricsUseCase {
     return rawPage;
   }
 
-  private async searchWithFallback(query: string, page: number): Promise<SearchLyricsOutput> {
+  private async searchWithFallback(query: string, page: number): Promise<FilteredSongsOutput> {
     try {
       const firstAttempt = await this.searchProvider.searchLyrics({ query, page, fallback: false });
-      const firstAttemptNormalized = this.normalizeAndFilterResults(firstAttempt.results);
+      const firstAttemptFiltered = await this.normalizeAndFilterResults(firstAttempt.results);
 
-      if (firstAttemptNormalized.length > 0) {
-        return firstAttempt;
+      if (firstAttemptFiltered.songs.length > 0) {
+        return firstAttemptFiltered;
       }
 
       const fallbackAttempt = await this.searchProvider.searchLyrics({ query, page, fallback: true });
-      return fallbackAttempt;
+      const fallbackFiltered = await this.normalizeAndFilterResults(fallbackAttempt.results);
+
+      return {
+        songs: fallbackFiltered.songs,
+        hasTechnicalFailures:
+          firstAttemptFiltered.hasTechnicalFailures || fallbackFiltered.hasTechnicalFailures
+      };
     } catch (error) {
       if (error instanceof AppError) {
         throw error;
@@ -87,7 +107,9 @@ export class GetLyricsUseCase {
     }
   }
 
-  private normalizeAndFilterResults(results: ScrapedLyricsSearchResult[]): GetLyricsSongDto[] {
+  private async normalizeAndFilterResults(
+    results: ScrapedLyricsSearchResult[]
+  ): Promise<FilteredSongsOutput> {
     const seen = new Set<string>();
     const normalizedResults: GetLyricsSongDto[] = [];
 
@@ -117,7 +139,47 @@ export class GetLyricsUseCase {
       });
     }
 
-    return normalizedResults;
+    if (!this.syncedLyricsAvailabilityProvider) {
+      return {
+        songs: normalizedResults,
+        hasTechnicalFailures: false
+      };
+    }
+
+    return this.filterSongsWithSyncedLyrics(normalizedResults);
+  }
+
+  private async filterSongsWithSyncedLyrics(songs: GetLyricsSongDto[]): Promise<FilteredSongsOutput> {
+    const syncedLyricsAvailabilityProvider = this.syncedLyricsAvailabilityProvider;
+    if (!syncedLyricsAvailabilityProvider) {
+      return {
+        songs,
+        hasTechnicalFailures: false
+      };
+    }
+
+    const songsWithSyncedLyrics: GetLyricsSongDto[] = [];
+    let hasTechnicalFailures = false;
+
+    for (const song of songs) {
+      try {
+        const hasSyncedLyrics = await syncedLyricsAvailabilityProvider.hasSyncedLyrics(song.url);
+        if (hasSyncedLyrics) {
+          songsWithSyncedLyrics.push(song);
+        }
+      } catch (error) {
+        if (error instanceof AppError && (error.statusCode === 400 || error.statusCode === 404)) {
+          continue;
+        }
+
+        hasTechnicalFailures = true;
+      }
+    }
+
+    return {
+      songs: songsWithSyncedLyrics,
+      hasTechnicalFailures
+    };
   }
 
   private normalizeSongUrl(rawUrl: string): string | null {

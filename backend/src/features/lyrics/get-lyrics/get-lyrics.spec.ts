@@ -1,10 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
+import { AppError } from '../../../shared/errors/app-error';
 import type { ILyricsSearchProvider } from '../../../shared/providers/scraping/iser-scraping.provider';
-import { GetLyricsUseCase } from './get-lyrics.usecase';
+import { GetLyricsUseCase, type ISyncedLyricsAvailabilityProvider } from './get-lyrics.usecase';
 
 function createProviderMock(): ILyricsSearchProvider {
   return {
     searchLyrics: vi.fn()
+  };
+}
+
+function createSyncedLyricsAvailabilityProviderMock(): ISyncedLyricsAvailabilityProvider {
+  return {
+    hasSyncedLyrics: vi.fn()
   };
 }
 
@@ -123,6 +130,129 @@ describe('GetLyricsUseCase', () => {
     });
     
     
+  });
+
+  it('retorna apenas músicas com legenda sincronizada disponível', async () => {
+    const provider = createProviderMock();
+    const syncedLyricsAvailabilityProvider = createSyncedLyricsAvailabilityProviderMock();
+    const useCase = new GetLyricsUseCase(provider, syncedLyricsAvailabilityProvider);
+
+    vi.mocked(provider.searchLyrics).mockResolvedValueOnce({
+      results: [
+        {
+          id: 'superman',
+          title: 'Superman',
+          artist: 'Eminem',
+          preview: 'Música do Eminem no Letras.',
+          url: 'https://www.letras.mus.br/eminem/superman/'
+        },
+        {
+          id: 'not-afraid',
+          title: 'Not Afraid',
+          artist: 'Eminem',
+          preview: 'Outra música do Eminem no Letras.',
+          url: 'https://www.letras.mus.br/eminem/not-afraid/'
+        }
+      ]
+    });
+
+    vi.mocked(syncedLyricsAvailabilityProvider.hasSyncedLyrics)
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false);
+
+    const output = await useCase.execute({ q: 'eminem', page: 1 });
+
+    expect(output.songs).toHaveLength(1);
+    expect(output.songs[0]?.title).toBe('Superman');
+    expect(syncedLyricsAvailabilityProvider.hasSyncedLyrics).toHaveBeenNthCalledWith(
+      1,
+      'https://www.letras.mus.br/eminem/superman/'
+    );
+    expect(syncedLyricsAvailabilityProvider.hasSyncedLyrics).toHaveBeenNthCalledWith(
+      2,
+      'https://www.letras.mus.br/eminem/not-afraid/'
+    );
+  });
+
+  it('executa fallback quando primeira tentativa só contém músicas sem legenda sincronizada', async () => {
+    const provider = createProviderMock();
+    const syncedLyricsAvailabilityProvider = createSyncedLyricsAvailabilityProviderMock();
+    const useCase = new GetLyricsUseCase(provider, syncedLyricsAvailabilityProvider);
+
+    vi.mocked(provider.searchLyrics)
+      .mockResolvedValueOnce({
+        results: [
+          {
+            id: 'superman',
+            title: 'Superman',
+            artist: 'Eminem',
+            preview: 'Sem legenda sincronizada.',
+            url: 'https://www.letras.mus.br/eminem/superman/'
+          }
+        ]
+      })
+      .mockResolvedValueOnce({
+        results: [
+          {
+            id: 'not-afraid',
+            title: 'Not Afraid',
+            artist: 'Eminem',
+            preview: 'Com legenda sincronizada.',
+            url: 'https://www.letras.mus.br/eminem/not-afraid/'
+          }
+        ]
+      });
+
+    vi.mocked(syncedLyricsAvailabilityProvider.hasSyncedLyrics)
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
+
+    const output = await useCase.execute({ q: 'eminem', page: 1 });
+
+    expect(output.songs).toHaveLength(1);
+    expect(output.songs[0]?.title).toBe('Not Afraid');
+    expect(provider.searchLyrics).toHaveBeenCalledTimes(2);
+    expect(provider.searchLyrics).toHaveBeenNthCalledWith(1, {
+      query: 'eminem',
+      page: 1,
+      fallback: false
+    });
+    expect(provider.searchLyrics).toHaveBeenNthCalledWith(2, {
+      query: 'eminem',
+      page: 1,
+      fallback: true
+    });
+  });
+
+  it('retorna 502 quando a validação de legendas falha tecnicamente sem alternativas', async () => {
+    const provider = createProviderMock();
+    const syncedLyricsAvailabilityProvider = createSyncedLyricsAvailabilityProviderMock();
+    const useCase = new GetLyricsUseCase(provider, syncedLyricsAvailabilityProvider);
+
+    vi.mocked(provider.searchLyrics)
+      .mockResolvedValueOnce({
+        results: [
+          {
+            id: 'superman',
+            title: 'Superman',
+            artist: 'Eminem',
+            preview: 'Falha técnica ao validar legenda.',
+            url: 'https://www.letras.mus.br/eminem/superman/'
+          }
+        ]
+      })
+      .mockResolvedValueOnce({
+        results: []
+      });
+
+    vi.mocked(syncedLyricsAvailabilityProvider.hasSyncedLyrics).mockRejectedValueOnce(
+      new AppError('Falha técnica no provider de legenda.', 502)
+    );
+
+    await expect(useCase.execute({ q: 'eminem', page: 1 })).rejects.toMatchObject({
+      statusCode: 502,
+      message: 'Falha ao validar disponibilidade de legendas sincronizadas.'
+    });
   });
 
   it('expõe totalPages como quantidade de itens retornados', async () => {

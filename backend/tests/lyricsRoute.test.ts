@@ -1,9 +1,11 @@
 import request from 'supertest';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { AppError } from '../src/shared/errors/app-error';
 import { app } from '../src/app';
 
-const { searchLyricsMock } = vi.hoisted(() => ({
-  searchLyricsMock: vi.fn()
+const { searchLyricsMock, executeSyncedLyricsMock } = vi.hoisted(() => ({
+  searchLyricsMock: vi.fn(),
+  executeSyncedLyricsMock: vi.fn()
 }));
 
 vi.mock('../src/shared/providers/scraping/yahoo-scraping.provider', () => {
@@ -14,9 +16,21 @@ vi.mock('../src/shared/providers/scraping/yahoo-scraping.provider', () => {
   return { YahooScrapingProvider };
 });
 
+vi.mock('../src/features/lyrics/get-synced-lyrics/get-synced-lyrics.usecase', () => {
+  class GetSyncedLyricsUseCase {
+    execute = executeSyncedLyricsMock;
+  }
+
+  return { GetSyncedLyricsUseCase };
+});
+
 describe('GET /api/lyrics', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    executeSyncedLyricsMock.mockResolvedValue({
+      lines: [{ start: '10.0', end: '12.0', text: 'Linha de teste' }],
+      hidden: null
+    });
   });
 
   it('retorna array de músicas quando q/page são válidos', async () => {
@@ -124,6 +138,44 @@ describe('GET /api/lyrics', () => {
     expect(response.body.success).toBe(false);
     expect(response.body.error.code).toBe('APP_ERROR');
     expect(response.body.error.message).toContain('Falha ao consultar resultados');
+  });
+
+  it('retorna apenas músicas com legenda sincronizada', async () => {
+    searchLyricsMock.mockResolvedValueOnce({
+      results: [
+        {
+          id: 'superman-id',
+          title: 'Superman',
+          artist: 'Eminem',
+          preview: 'Com legenda sincronizada.',
+          url: 'https://www.letras.mus.br/eminem/superman/'
+        },
+        {
+          id: 'without-sync-id',
+          title: 'Sem Legenda',
+          artist: 'Eminem',
+          preview: 'Sem legenda sincronizada.',
+          url: 'https://www.letras.mus.br/eminem/without-sync/'
+        }
+      ]
+    });
+
+    executeSyncedLyricsMock
+      .mockResolvedValueOnce({
+        lines: [{ start: '10.0', end: '12.0', text: 'Linha com sync' }],
+        hidden: null
+      })
+      .mockRejectedValueOnce(new AppError('Legenda sincronizada não disponível para esta música.', 404));
+
+    const response = await request(app)
+      .get('/api/lyrics')
+      .query({ q: 'eminem', page: 1 });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.results).toHaveLength(1);
+    expect(response.body.results[0].title).toBe('Superman');
+    expect(executeSyncedLyricsMock).toHaveBeenCalledTimes(2);
   });
 });
 

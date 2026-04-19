@@ -2,7 +2,7 @@ export const getLyricsPathSpec = {
   '/api/lyrics': {
     get: {
       tags: ['Lyrics'],
-      summary: 'Busca músicas no letras.mus.br por termo textual',
+      summary: 'Busca músicas no letras.mus.br com legenda sincronizada disponível',
       parameters: [
         {
           name: 'q',
@@ -112,7 +112,7 @@ export const getLyricsPathSpec = {
           }
         },
         '404': {
-          description: 'Nenhuma música encontrada para a busca',
+          description: 'Nenhuma música com legenda sincronizada encontrada para a busca',
           content: {
             'application/json': {
               schema: {
