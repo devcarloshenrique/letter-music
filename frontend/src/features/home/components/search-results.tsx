@@ -6,7 +6,6 @@ import { useInfiniteScroll } from '../../../shared/hooks/use-infinite-scroll';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { SyncedLyricsData } from '../types/home.types';
-import { homeService } from '../services/home.service';
 
 interface SearchResultsProps {
   data: InfiniteData<SearchLyricsSuccessResponse> | undefined;
@@ -68,14 +67,6 @@ export function SearchResults({
     fetchNextPage,
     rootMargin: '200px'
   });
-
-  const prefetchSyncedLyrics = (songUrl: string) => {
-    void queryClient.prefetchQuery({
-      queryKey: ['synced-lyrics', songUrl],
-      queryFn: () => homeService.fetchSyncedLyrics(songUrl),
-      staleTime: 60_000
-    });
-  };
 
   const persistLastSelectedSong = (songUrl: string) => {
     const songKey = encodeURIComponent(songUrl);
@@ -145,12 +136,6 @@ export function SearchResults({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.18 }}
-            onMouseEnter={() => {
-              prefetchSyncedLyrics(song.url);
-            }}
-            onFocus={() => {
-              prefetchSyncedLyrics(song.url);
-            }}
             onClick={() => {
               const fullTitle = song.title;
               const author = song.artist || 'Unknown Artist';

@@ -1,22 +1,59 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { useSearchParams } from 'react-router-dom';
 import { homeSearchSchema, type HomeSearchSchema } from '../schemas/home.schema';
 import { useSearchLyrics } from '../hooks/use-search-lyrics';
 import { SearchResults } from '../components/search-results';
 import { homeService } from '../services/home.service';
-import type { SearchLyricsSong } from '../types/home.types';
+import type { SearchLyricsSong, SearchLyricsSuccessResponse } from '../types/home.types';
 
 export default function HomePage() {
+  const queryClient = useQueryClient();
   const [highlightedSongKey, setHighlightedSongKey] = useState<string | null>(null);
   const [recoveredSongs, setRecoveredSongs] = useState<SearchLyricsSong[]>([]);
   const [resolvedSkippedPages, setResolvedSkippedPages] = useState<number[]>([]);
   const [isRetryingSkippedPages, setIsRetryingSkippedPages] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const searchQuery = (searchParams.get('q') ?? '').trim();
+  const resolvedSkippedStorageKey = useMemo(() => {
+    if (!searchQuery) {
+      return null;
+    }
+
+    return `home:resolved-skipped-pages:${encodeURIComponent(searchQuery.toLowerCase())}`;
+  }, [searchQuery]);
   const { data, isLoading, isFetchingNextPage, isFetchNextPageError, hasNextPage, fetchNextPage } = useSearchLyrics(searchQuery);
+
+  const removeResolvedSkippedPagesFromCache = useCallback((resolvedPages: number[]) => {
+    if (!searchQuery || resolvedPages.length === 0) {
+      return;
+    }
+
+    const resolvedSet = new Set(resolvedPages);
+
+    queryClient.setQueryData<InfiniteData<SearchLyricsSuccessResponse>>(
+      ['search-lyrics', searchQuery.trim()],
+      (cached) => {
+        if (!cached) {
+          return cached;
+        }
+
+        return {
+          ...cached,
+          pages: cached.pages.map((page) => ({
+            ...page,
+            pagination: {
+              ...page.pagination,
+              skipped: page.pagination.skipped.filter((skippedPage) => !resolvedSet.has(skippedPage))
+            }
+          }))
+        };
+      }
+    );
+  }, [queryClient, searchQuery]);
 
   const skippedPages = useMemo(() => {
     const pagesFromResponses = data?.pages.flatMap((page) => page.pagination.skipped) ?? [];
@@ -47,9 +84,43 @@ export default function HomePage() {
 
   useEffect(() => {
     setRecoveredSongs([]);
-    setResolvedSkippedPages([]);
     setIsRetryingSkippedPages(false);
   }, [searchQuery]);
+
+  useEffect(() => {
+    if (!resolvedSkippedStorageKey) {
+      setResolvedSkippedPages([]);
+      return;
+    }
+
+    const persisted = sessionStorage.getItem(resolvedSkippedStorageKey);
+    if (!persisted) {
+      setResolvedSkippedPages([]);
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(persisted) as unknown;
+      if (!Array.isArray(parsed)) {
+        setResolvedSkippedPages([]);
+        return;
+      }
+
+      const sanitized = parsed.filter((value): value is number => Number.isInteger(value));
+      setResolvedSkippedPages(sanitized);
+      removeResolvedSkippedPagesFromCache(sanitized);
+    } catch {
+      setResolvedSkippedPages([]);
+    }
+  }, [removeResolvedSkippedPagesFromCache, resolvedSkippedStorageKey]);
+
+  useEffect(() => {
+    if (!resolvedSkippedStorageKey) {
+      return;
+    }
+
+    sessionStorage.setItem(resolvedSkippedStorageKey, JSON.stringify(resolvedSkippedPages));
+  }, [resolvedSkippedPages, resolvedSkippedStorageKey]);
 
   useEffect(() => {
     if (!searchQuery || !data) return;
@@ -133,7 +204,9 @@ export default function HomePage() {
       }
 
       if (recoveredPages.size > 0) {
-        setResolvedSkippedPages((current) => [...new Set([...current, ...recoveredPages])]);
+        const resolvedPages = Array.from(recoveredPages);
+        removeResolvedSkippedPagesFromCache(resolvedPages);
+        setResolvedSkippedPages((current) => [...new Set([...current, ...resolvedPages])]);
       }
     } finally {
       setIsRetryingSkippedPages(false);
