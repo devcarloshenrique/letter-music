@@ -280,7 +280,7 @@ function extractSubtitleMetaFromScript(scriptRaw: string): Pick<SyncedLyricsSong
 
   return {
     musicId,
-    youtubeId: youtubeId || undefined
+    youtubeId
   };
 }
 
@@ -539,7 +539,14 @@ function isLoginPage(html: string): boolean {
 }
 
 export class GetSyncedLyricsUseCase {
-  constructor(private readonly httpClient: IHttpClient) {}
+  constructor(
+    private readonly httpClient: IHttpClient,
+    private readonly publicHttpClientFactory?: () => IHttpClient
+  ) {}
+
+  private resolvePublicHttpClient(): IHttpClient {
+    return this.publicHttpClientFactory?.() ?? this.httpClient;
+  }
 
   private parseAndValidateInputUrl(rawUrl: string): URL {
     try {
@@ -559,12 +566,16 @@ export class GetSyncedLyricsUseCase {
     }
   }
 
-  private async resolveSyncedLyricsUrl(parsedUrl: URL, prefetchedHtml?: string): Promise<URL> {
+  private async resolveSyncedLyricsUrl(
+    parsedUrl: URL,
+    publicHttpClient: IHttpClient,
+    prefetchedHtml?: string
+  ): Promise<URL> {
     if (parsedUrl.pathname.includes('/contribuicoes/corrigir_legenda/')) {
       return parsedUrl;
     }
 
-    const html = prefetchedHtml ?? (await this.fetchPublicPageHtml(parsedUrl));
+    const html = prefetchedHtml ?? (await this.fetchPublicPageHtml(parsedUrl, publicHttpClient));
 
     const meta = extractSongMetaFromPublicPage(html);
     if (hasCompleteSongMeta(meta)) {
@@ -603,10 +614,10 @@ export class GetSyncedLyricsUseCase {
     return new URL(`/${dns}/${songSlug}/`, LETRAS_BASE_URL);
   }
 
-  private async fetchPublicPageHtml(parsedUrl: URL): Promise<string> {
+  private async fetchPublicPageHtml(parsedUrl: URL, publicHttpClient: IHttpClient): Promise<string> {
     const songUrl = this.buildSongUrlFromContributionUrl(parsedUrl) ?? parsedUrl;
 
-    const songPageResponse = await this.httpClient.get<string>(songUrl.toString(), {
+    const songPageResponse = await publicHttpClient.get<string>(songUrl.toString(), {
       ...LETRAS_BROWSER_HEADERS
     });
 
@@ -622,7 +633,8 @@ export class GetSyncedLyricsUseCase {
   }
 
   private async fetchPublicSubtitle(
-    meta: Pick<SyncedLyricsSongMeta, 'musicId' | 'youtubeId'>
+    meta: Pick<SyncedLyricsSongMeta, 'musicId' | 'youtubeId'>,
+    publicHttpClient: IHttpClient
   ): Promise<Pick<GetSyncedLyricsOutputDto, 'lines' | 'video_url'>> {
     const musicId = normalizeMetaValue(meta.musicId);
     const initialYoutubeId = normalizeMetaValue(meta.youtubeId);
@@ -637,7 +649,7 @@ export class GetSyncedLyricsUseCase {
     }
 
     if (youtubeCandidates.length === 0) {
-      const candidatesResponse = await this.httpClient.get<unknown>(
+      const candidatesResponse = await publicHttpClient.get<unknown>(
         buildPublicSubtitleCandidatesEndpoint(musicId),
         {
           ...LETRAS_BROWSER_HEADERS
@@ -663,7 +675,7 @@ export class GetSyncedLyricsUseCase {
 
     for (const youtubeId of youtubeCandidates) {
       const subtitleEndpoint = buildPublicSubtitleEndpoint(musicId, youtubeId);
-      const subtitleResponse = await this.httpClient.get<unknown>(subtitleEndpoint, {
+      const subtitleResponse = await publicHttpClient.get<unknown>(subtitleEndpoint, {
         ...LETRAS_BROWSER_HEADERS
       });
 
@@ -701,9 +713,13 @@ export class GetSyncedLyricsUseCase {
     throw new AppError('Não foi possível extrair legendas sincronizadas da resposta pública.', 404);
   }
 
-  private async fetchFromContributionPage(parsedUrl: URL, prefetchedHtml?: string): Promise<GetSyncedLyricsOutputDto> {
-    const syncedLyricsUrl = await this.resolveSyncedLyricsUrl(parsedUrl, prefetchedHtml);
-    const response = await this.httpClient.get<string>(syncedLyricsUrl.toString(), {
+  private async fetchFromContributionPage(
+    parsedUrl: URL,
+    publicHttpClient: IHttpClient,
+    prefetchedHtml?: string
+  ): Promise<GetSyncedLyricsOutputDto> {
+    const syncedLyricsUrl = await this.resolveSyncedLyricsUrl(parsedUrl, publicHttpClient, prefetchedHtml);
+    const response = await publicHttpClient.get<string>(syncedLyricsUrl.toString(), {
       ...LETRAS_BROWSER_HEADERS
     });
 
@@ -756,19 +772,32 @@ export class GetSyncedLyricsUseCase {
     }
 
     const parsedUrl = this.parseAndValidateInputUrl(input.url);
+    const publicHttpClient = this.resolvePublicHttpClient();
 
-    const publicPageHtml = await this.fetchPublicPageHtml(parsedUrl);
+    const publicPageHtml = await this.fetchPublicPageHtml(parsedUrl, publicHttpClient);
     const subtitleMeta = extractSubtitleMetaFromPublicPage(publicPageHtml);
 
     if (subtitleMeta) {
-      const subtitleResult = await this.fetchPublicSubtitle(subtitleMeta);
-      return {
-        lines: subtitleResult.lines,
-        video_url: subtitleResult.video_url,
-        hidden: null
-      };
+      try {
+        const subtitleResult = await this.fetchPublicSubtitle(subtitleMeta, publicHttpClient);
+        return {
+          lines: subtitleResult.lines,
+          video_url: subtitleResult.video_url,
+          hidden: null
+        };
+      } catch (error) {
+        if (error instanceof AppError && (error.statusCode === 404 || error.statusCode === 502)) {
+          try {
+            return await this.fetchFromContributionPage(parsedUrl, publicHttpClient, publicPageHtml);
+          } catch {
+            throw error;
+          }
+        }
+
+        throw error;
+      }
     }
 
-    return this.fetchFromContributionPage(parsedUrl, publicPageHtml);
+    return this.fetchFromContributionPage(parsedUrl, publicHttpClient, publicPageHtml);
   }
 }

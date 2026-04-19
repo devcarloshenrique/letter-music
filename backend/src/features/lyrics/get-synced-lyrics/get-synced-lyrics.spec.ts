@@ -147,6 +147,32 @@ describe('GetSyncedLyricsUseCase', () => {
     expect(vi.mocked(httpClient.postJson)).not.toHaveBeenCalled();
   });
 
+  it('usa client público por requisição quando factory é fornecida', async () => {
+    const sharedHttpClient = createHttpClientMock();
+    const publicHttpClient = createHttpClientMock();
+    const publicHttpClientFactory = vi.fn(() => publicHttpClient);
+    const useCase = new GetSyncedLyricsUseCase(sharedHttpClient, publicHttpClientFactory);
+
+    vi.mocked(publicHttpClient.get)
+      .mockResolvedValueOnce({
+        status: 200,
+        data: createPublicPageWithSubtitleMeta()
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        data: createSubtitlePayload()
+      });
+
+    const result = await useCase.execute({
+      url: 'https://www.letras.mus.br/casa-worship/a-casa-e-sua/'
+    });
+
+    expect(result.lines).toHaveLength(2);
+    expect(publicHttpClientFactory).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(publicHttpClient.get)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(sharedHttpClient.get)).not.toHaveBeenCalled();
+  });
+
   it('usa fallback do HTML sincronizado quando metadados públicos de subtitle não existem', async () => {
     const httpClient = createHttpClientMock();
     const useCase = new GetSyncedLyricsUseCase(httpClient);

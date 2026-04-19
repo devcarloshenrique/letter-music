@@ -27,7 +27,8 @@ const { mockHttpClient } = vi.hoisted(() => ({
 }));
 
 vi.mock('../src/shared/infra/http/letras-http.client', () => ({
-  letrasHttpClient: mockHttpClient
+  letrasHttpClient: mockHttpClient,
+  createFreshLetrasHttpClient: () => mockHttpClient
 }));
 
 import { app } from '../src/app';
