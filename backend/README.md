@@ -77,25 +77,36 @@ Após iniciar a aplicação, acesse no navegador:
 
 ## Como rodar
 
-1. Instale as dependências:
+### Com Docker
+
+O backend sobe junto com o frontend a partir da raiz do repositório:
+
+```bash
+docker compose up --build
+```
+
+Se quiser expor o ngrok junto com a aplicação:
+
+```bash
+docker compose --profile ngrok up --build
+```
+
+Os endpoints principais ficam disponíveis em:
+
+- `http://localhost:3000/docs`
+- `http://localhost:3000/openapi.json`
+
+### Sem Docker
+
+Se preferir rodar apenas o backend localmente:
 
 ```bash
 npm install
-```
-
-2. Instale os browsers usados pelo Playwright:
-
-```bash
 npx playwright install
-```
-
-3. Rodar em desenvolvimento:
-
-```bash
 npm run dev
 ```
 
-4. Build e execução em produção:
+Para build de produção:
 
 ```bash
 npm run build

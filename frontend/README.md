@@ -4,6 +4,33 @@
 
 - Global lyrics playback persistence and docked video behavior are documented in `docs/lyrics-player-persistence.md`.
 
+## Como rodar
+
+### Com Docker
+
+O frontend sobe junto com o backend a partir da raiz do repositório:
+
+```bash
+docker compose up --build
+```
+
+Se quiser expor o ngrok junto com a aplicação:
+
+```bash
+docker compose --profile ngrok up --build
+```
+
+O frontend fica disponível em `http://localhost:5173`.
+
+### Sem Docker
+
+Se preferir rodar o frontend localmente:
+
+```bash
+npm install
+npm run dev
+```
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

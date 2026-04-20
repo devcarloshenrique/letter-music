@@ -46,48 +46,68 @@ Construído com **React, TypeScript, Vite e Tailwind CSS**, utilizando **Feature
 ## 🚀 Como Executar Localmente
 
 ### Pré-requisitos
-- Node.js (versão 18+ recomendada)
-- NPM ou Yarn
+- Docker Desktop e Docker Compose V2
+- Node.js (versão 18+ recomendada) apenas se for rodar sem Docker
+
+### Executando com Docker
+
+Na raiz do projeto existe um `docker-compose.yml` que sobe o backend e o frontend juntos.
+
+1. Se quiser usar ngrok, copie o exemplo de ambiente e preencha o authtoken:
+
+   ```bash
+   cp .env.ngrok.example .env.ngrok
+   ```
+
+2. Suba a aplicação completa:
+
+   ```bash
+   docker compose up --build
+   ```
+
+3. Para subir também o ngrok, ative o profile:
+
+   ```bash
+   docker compose --profile ngrok up --build
+   ```
+
+4. Em outro terminal, veja o link público do ngrok:
+
+   ```bash
+   docker compose --profile ngrok logs -f ngrok
+   ```
+
+### Acessos locais
+
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:3000`
+- Swagger: `http://localhost:3000/docs`
+- Inspector do ngrok: `http://localhost:4040`
 
 ### Backend
 
 O backend atua como uma API REST provisionando as letras e buscando dados remotamente.
 
-1. Navegue para o diretório do backend:
-   ```bash
-   cd backend
-   ```
-2. Instale as dependências:
-   ```bash
-   npm install
-   ```
-3. Instale os navegadores utilizados pelo Playwright (necessário para o scraping de letras):
-   ```bash
-   npx playwright install
-   ```
-4. Inicie o servidor de desenvolvimento:
-   ```bash
-   npm run dev
-   ```
-   *A documentação da API (Swagger) estará disponível em: `http://localhost:3000/docs`*
+Se você preferir rodar sem Docker, use os comandos tradicionais dentro de `backend/`:
+
+```bash
+cd backend
+npm install
+npx playwright install
+npm run dev
+```
 
 ### Frontend
 
 O frontend providencia a interface rica do visualizador de letras.
 
-1. Navegue para o diretório do frontend:
-   ```bash
-   cd frontend
-   ```
-2. Instale as dependências:
-   ```bash
-   npm install
-   ```
-3. Inicie o servidor de desenvolvimento:
-   ```bash
-   npm run dev
-   ```
-   *A aplicação estará rodando tipicamente em `http://localhost:5173/`.*
+Se você preferir rodar sem Docker, use os comandos tradicionais dentro de `frontend/`:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
 ---
 

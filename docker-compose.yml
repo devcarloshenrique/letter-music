@@ -30,3 +30,16 @@ services:
       - ./frontend:/app
       - /app/node_modules
     command: npm run dev -- --host 0.0.0.0 --port 5173
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    profiles: ["ngrok"]
+    env_file:
+      - ./.env.ngrok
+    command: http frontend:5173
+    depends_on:
+      - frontend
+    ports:
+      - '4040:4040'
+    restart: unless-stopped
+
